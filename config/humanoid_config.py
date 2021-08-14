@@ -131,15 +131,30 @@ class HumanoidConfig():
     samplingWindow = [
         [0.1, 0.1, 0.1],      # chest
         [0.2, 0.2, 0.2],      # neck
-        [0.4, 0.4, 0.1],      # right hip
-        [0.3],                # right knee
-        [0.4, 0.2, 0.1],      # right ankle
+        [0.1, 0.4, 0.4],      # right hip
+        [0.4],                # right knee
+        [0.1, 0.2, 0.4],      # right ankle
         [0.2, 0.2, 0.2],      # right shoulder
         [0.0],                # right elbow
-        [0.4, 0.4, 0.1],      # left hip
-        [0.3],                # left knee
-        [0.4, 0.2, 0.1],      # left ankle
+        [0.1, 0.4, 0.4],      # left hip
+        [0.4],                # left knee
+        [0.1, 0.2, 0.4],      # left ankle
         [0.2, 0.2, 0.2],      # left shoulder
         [0.0],                # left elbow
     ]
+
+    # samplingWindow = [
+    #     [0.0, 0.0, 0.1],      # chest
+    #     [0.0, 0.0, 0.1],      # neck
+    #     [0.0, 0.0, 0.785],      # right hip
+    #     [0.4],                # right knee
+    #     [0.1, 0.2, 0.785],      # right ankle
+    #     [0.0, 0.0, 0.0],      # right shoulder
+    #     [0.0],                # right elbow
+    #     [0.0, 0.0, 0.785],      # left hip
+    #     [0.4],                # left knee
+    #     [0.1, 0.2, 0.785],      # left ankle
+    #     [0.0, 0.0, 0.0],      # left shoulder
+    #     [0.0],                # left elbow
+    # ]
     

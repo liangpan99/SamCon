@@ -33,9 +33,12 @@ def main(**args):
     nSave = args.get('nSave')
     nSaveFinal = args.get('nSaveFinal')
     savePath = args.get('save_path')
+    useGUI = args.get('useGUI')
+    if useGUI:
+      p.connect(p.GUI)
+    else:
+      p.connect(p.DIRECT)
 
-
-    p.connect()
     p.configureDebugVisualizer(p.COV_ENABLE_Y_AXIS_UP, 1)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.setGravity(0, -9.8, 0)
@@ -61,14 +64,18 @@ def main(**args):
             animating = not animating
         
         if animating:
-          #samcon.test(savePath, fps)
-          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps)
+          samcon.test(savePath, fps)
+          #samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps)
 
+
+          pass
         
 
 
 if __name__ == '__main__':
     args = {
+        'useGUI': True,
+
         'cameraDistance': 2,
         'cameraYaw': 180,
         'cameraPitch': -50,
@@ -79,11 +86,11 @@ if __name__ == '__main__':
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,
-        'displayFPS': 10000,
+        'displayFPS': 800,
 
-        'nIter': 10,
-        'nSample': 1400,
-        'nSave': 200,
-        'nSaveFinal': 30
+        'nIter': 7,
+        'nSample': 25,
+        'nSave': 5,
+        'nSaveFinal': 5
     }
     main(**args)

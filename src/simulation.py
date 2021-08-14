@@ -190,7 +190,7 @@ class HumanoidStablePD():
                                                         forces=forces)
 
 
-    def simulation(self, is_test, desiredPosition, sampleTimeStep, displayFPS):
+    def simulation(self, desiredPosition, sampleTimeStep, displayFPS):
         """ 执行仿真
         
         Args:
@@ -200,17 +200,16 @@ class HumanoidStablePD():
             cost
         
         """
-        if is_test == False:
-            # base不能控制, 因此需要7个0
-            desiredPosition = [0, 0, 0, 0, 0, 0, 0] \
-                + list(desiredPosition.chestRot) + list(desiredPosition.neckRot) \
-                + list(desiredPosition.rightHipRot) + list(desiredPosition.rightKneeRot) + list(desiredPosition.rightAnkleRot) \
-                + list(desiredPosition.rightShoulderRot) + list(desiredPosition.rightElbowRot) \
-                + list(desiredPosition.leftHipRot) + list(desiredPosition.leftKneeRot) + list(desiredPosition.leftAnkleRot) \
-                + list(desiredPosition.leftShoulderRot) + list(desiredPosition.leftElbowRot)
-        else:
-            desiredPosition[0:7] = [0, 0, 0, 0, 0, 0, 0]
 
+        # base不能控制, 因此需要7个0
+        desiredPosition = [0, 0, 0, 0, 0, 0, 0] \
+            + list(desiredPosition.chestRot) + list(desiredPosition.neckRot) \
+            + list(desiredPosition.rightHipRot) + list(desiredPosition.rightKneeRot) + list(desiredPosition.rightAnkleRot) \
+            + list(desiredPosition.rightShoulderRot) + list(desiredPosition.rightElbowRot) \
+            + list(desiredPosition.leftHipRot) + list(desiredPosition.leftKneeRot) + list(desiredPosition.leftAnkleRot) \
+            + list(desiredPosition.leftShoulderRot) + list(desiredPosition.leftElbowRot)
+
+        
         numSim = int(sampleTimeStep / self._simTimeStep)
         for i in range(numSim):
             taus = self.computePDForces(desiredPosition, desiredVelocities=None, maxForces=c.maxForces)
