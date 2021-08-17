@@ -1,5 +1,17 @@
 # SamCon_pybullet
+for SIGGRAPH2010 paper [SamCon](http://libliu.info/Samcon/Samcon.html)
 
+TBD: semantic sampling time step  
+parallel
+
+## Dependencies
+``` python
+pybullet
+numpy
+json
+time
+math
+```
 
 ## Citation
 If you find SamCon_pybullet useful in your research, please cite our repository using the following BibTeX entry.
