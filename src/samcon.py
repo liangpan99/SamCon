@@ -1,4 +1,6 @@
+import time
 import json
+import math
 import numpy as np
 
 from src.simulation import HumanoidStablePD
@@ -7,14 +9,13 @@ from config.humanoid_config import HumanoidConfig as c
 
 INIT_STATE_INDEX = 0
 TARGET_STATE_INDEX = 1
-SIM_TARGET_STATE_INDEX = 2
-COST_INDEX = 3
+SAMPLED_TARGET_STATE_INDEX = 2
+SIM_TARGET_STATE_INDEX = 3
+COST_INDEX = 4
 
-offset = 0.0 # 时间偏移
+offset = 0.0 # 0.2 # 时间偏移
 
 class SamCon():
-
-
 
     def __init__(self, pybullet_client, simTimeStep, sampleTimeStep, savePath):
         self._pb_client = pybullet_client
@@ -25,10 +26,12 @@ class SamCon():
 
 
 
-
-    def learn(self, nIter, nSample, nSave, nSaveFinal, dataPath, displayFPS):
+    def learn(self, nIter, nSample, nSave, nSaveFinal, dataPath, displayFPS, useFPS):
+        
+        print('SamCon 开始训练')
 
         self._mocap_data = PybulletMocapData(dataPath, self._pb_client)
+        print('序列的持续时间=', self._mocap_data.getCycleTime())
 
         self._nIter = nIter
         self._nSample = nSample
@@ -49,16 +52,18 @@ class SamCon():
 
         """
 
+        startTime = time.clock()
+
         SM = []
 
         # initialize SM[0]
         SM.append([])
         firstInitState = self._mocap_data.getSpecTimeState(t=0.0+offset)
         for i in range(self._nSave):
-            SM[0].append([0.0, 0.0, firstInitState, 0.0]) # [initState, targetState, simTargetState, cost]
+            SM[0].append([0.0, 0.0, 0.0, firstInitState, 0.0]) # [initState, targetState, sampledTargetState, simTargetState, cost]
 
         for t in range(1, self._nIter+1):
-            print('t=', t)
+            
             nInitState = len(SM[t-1])
             nSampleEachInitState = int(self._nSample / nInitState)
 
@@ -67,24 +72,51 @@ class SamCon():
             cost_list = []
             for init_state in SM[t-1]:
                 init_state = init_state[SIM_TARGET_STATE_INDEX]
-                
+
                 for i in range(nSampleEachInitState):
 
                     sampled_target_state = self.sample(target_state) # 只修改pose
                     self._humanoid.resetState(init_state, target_state)
-                    sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS)
-                    S.append([init_state, target_state, sim_target_state, cost])
+                    sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
+                    S.append([init_state, target_state, sampled_target_state, sim_target_state, cost])
+                    # print(f'iter: {t},  cost: {cost}')
                     cost_list.append(cost)
             
-            # 从nSample个样本中挑nSave个最小的保存
-            # TBD: 构建cost分布
+            # # 从nSample个样本中挑nSave个最小的保存
+            # cost_list = np.array(cost_list)
+            # cost_order = cost_list.argsort() # 从小到大排序 返回索引
+            # cost_order = cost_order[0:self._nSave] # 取前nSave个
+
+            # SM.append([])
+            # for index in cost_order:
+            #     SM[t].append(S[index])
+            
+            ## 从nSample个样本中挑nSave个保存
+            ## cost distribution method
+            # 1. 丢弃最高的40%个样本
             cost_list = np.array(cost_list)
-            cost_order = cost_list.argsort() # 从小到大排序 返回索引
-            cost_order = cost_order[0:self._nSave] # 取前nSave个
+            cost_order = cost_list.argsort() # 从小到达排序 返回索引
+            numDiscard = int(self._nSample * 0.6)
+            cost_order = cost_order[0:numDiscard] # 保存前60%
+            # 2. 找到cost_min和cost_max
+            cost_min = cost_list[cost_order[0]]
+            cost_max = cost_list[cost_order[-1]]
+            # 3. 寻找nSave个样本保存
+            indices_list = []
+            for x_i in range(self._nSave):
+                x = x_i / self._nSave
+                cost_target = cost_min + (cost_max - cost_min) * pow(x, 6)
+                
+                idx = (np.abs(cost_list - cost_target)).argmin()
+                indices_list.append(idx)
 
             SM.append([])
-            for index in cost_order:
+            for index in indices_list:
                 SM[t].append(S[index])
+
+
+            time_so_far = (time.clock() - startTime)
+            print('iter: {:d}  time_so_far:  {:.2f}s'.format(t, time_so_far))
 
         ## 从SM的尾部开始回溯, 找到nSave个path, 求他们的total_cost, 保存nSaveFinal个total_cost最小的结果
         # 找path
@@ -125,6 +157,7 @@ class SamCon():
         order = total_cost_list.argsort() # 从小到大排序 返回索引
         order = order[0:self._nSaveFinal] # 取前nSaveFinal个最小的
         
+
         self.save(SM, path_list, total_cost_list, order)
 
 
@@ -132,8 +165,10 @@ class SamCon():
         exit()
 
 
-    def test(self, dataPath, displayFPS):
-        
+    def test(self, dataPath, displayFPS, useFPS):
+
+        print('SamCon 开始测试')
+
         # 加载txt文件
         with open(dataPath, 'r') as f:
             data = json.load(f)
@@ -151,22 +186,36 @@ class SamCon():
             path_cost = data[key]['cost']
             t0_state = data[key]['t0_state']
             reference_states = data[key]['reference_states']
+            sampled_states = data[key]['sampled_states']
             simulated_states = data[key]['simulated_states']
 
             assert len(reference_states) == nIter
+            assert len(sampled_states) == nIter
             assert len(simulated_states) == nIter
 
             self._humanoid.resetState(start_state=self.getStateFromList(t0_state), end_state=None)
-
-            for t in range(nIter+1):
+            
+            for t in range(1, nIter+1):
+                print('iter:  ', t)
                 reference_state = reference_states[t-1]
                 reference_state = self.getStateFromList(reference_state)
+
+                sampled_state = sampled_states[t-1]
+                sampled_state = self.getStateFromList(sampled_state)
 
                 simulated_state = simulated_states[t-1]
                 simulated_state = self.getStateFromList(simulated_state)
 
-                self._humanoid.resetState(start_state=None, end_state=reference_state)
-                self._humanoid.simulation(simulated_state, sampleTimeStep, displayFPS)
+                self._humanoid.resetState(start_state=None, end_state=simulated_state)
+                state, _ = self._humanoid.simulation(sampled_state, sampleTimeStep, displayFPS, useFPS)
+
+                state_1 = self.getListFromNamedtuple(state)
+                state_2 = self.getListFromNamedtuple(simulated_state)
+                state_1 = np.array(state_1)
+                state_2 = np.array(state_2)
+                print('error: ', (state_1-state_2).sum())
+                # time.sleep(0.5)
+                
 
         
 
@@ -209,7 +258,22 @@ class SamCon():
             leftKneeRot=self.genModifiedQuaternion(state.leftKneeRot, c.samplingWindow[8]),
             leftAnkleRot=self.genModifiedQuaternion(state.leftAnkleRot, c.samplingWindow[9]),
             leftShoulderRot=self.genModifiedQuaternion(state.leftShoulderRot, c.samplingWindow[10]),
-            leftElbowRot=self.genModifiedQuaternion(state.leftElbowRot, c.samplingWindow[11])
+            leftElbowRot=self.genModifiedQuaternion(state.leftElbowRot, c.samplingWindow[11]),
+
+            baseLinVel = [0, 0, 0],
+            baseAngVel = [0, 0, 0],
+            chestVel = [0, 0, 0], 
+            neckVel = [0, 0, 0], 
+            rightHipVel = [0, 0, 0], 
+            rightKneeVel = [0], 
+            rightAnkleVel = [0, 0, 0], 
+            rightShoulderVel = [0, 0, 0], 
+            rightElbowVel = [0], 
+            leftHipVel = [0, 0, 0], 
+            leftKneeVel = [0], 
+            leftAnkleVel = [0, 0, 0], 
+            leftShoulderVel = [0, 0, 0], 
+            leftElbowVel = [0],
         )
 
         return modified_state
@@ -244,18 +308,22 @@ class SamCon():
             t0_state = SM[0][0][SIM_TARGET_STATE_INDEX]
             t0_state = self.getListFromNamedtuple(t0_state)
 
-            # 保存t=0之后时刻的reference states, simulated states
+            # 保存t=0之后时刻的reference states, sampled_states, simulated states
             reference_states = []
+            sampled_states = []
             simulated_states = []
             for t in range(1, self._nIter+1):
                 savedSample_index = path_list[pathId][t-1]
                 reference_state = SM[t][savedSample_index][TARGET_STATE_INDEX]
+                sampled_state = SM[t][savedSample_index][SAMPLED_TARGET_STATE_INDEX]
                 simulated_state = SM[t][savedSample_index][SIM_TARGET_STATE_INDEX]
 
                 reference_state = self.getListFromNamedtuple(reference_state)
+                sampled_state = self.getListFromNamedtuple(sampled_state)
                 simulated_state = self.getListFromNamedtuple(simulated_state)
 
                 reference_states.append(reference_state)
+                sampled_states.append(sampled_state)
                 simulated_states.append(simulated_state)
 
 
@@ -263,6 +331,7 @@ class SamCon():
                 'cost': pathCost_list[pathId],
                 't0_state': t0_state,
                 'reference_states': reference_states,
+                'sampled_states': sampled_states,
                 'simulated_states': simulated_states,
             }
 

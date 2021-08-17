@@ -27,6 +27,7 @@ def main(**args):
     }
     simTimeStep = args.get('simTimeStep')
     sampleTimeStep = args.get('sampleTimeStep')
+    useFPS = args.get('useFPS')
     fps = args.get('displayFPS')
     nIter = args.get('nIter')
     nSample = args.get('nSample')
@@ -57,6 +58,8 @@ def main(**args):
     path = pybullet_data.getDataPath() + args.get('data_path')
     samcon = SamCon(p, simTimeStep, sampleTimeStep, savePath)
 
+    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+
     animating = False
     while(p.isConnected()):
         keys = p.getKeyboardEvents()
@@ -64,8 +67,8 @@ def main(**args):
             animating = not animating
         
         if animating:
-          samcon.test(savePath, fps)
-          #samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps)
+          # samcon.test(savePath, fps, useFPS)
+          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
 
           pass
@@ -73,8 +76,9 @@ def main(**args):
 
 
 if __name__ == '__main__':
+    flag = 1
     args = {
-        'useGUI': True,
+        'useGUI': flag,
 
         'cameraDistance': 2,
         'cameraYaw': 180,
@@ -82,15 +86,16 @@ if __name__ == '__main__':
         'cameraTargetPosition': [0, 1, 1],
 
         'data_path': "/data/motions/humanoid3d_walk.txt",
-        'save_path': './data/reconstructed_motion/result.txt',
+        'save_path': './data/reconstructed_motion/result_7.0_resetSim.txt',
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,
+        'useFPS': flag,
         'displayFPS': 800,
 
-        'nIter': 7,
-        'nSample': 25,
-        'nSave': 5,
-        'nSaveFinal': 5
+        'nIter': 15,
+        'nSample': 10,
+        'nSave': 2,
+        'nSaveFinal': 2
     }
     main(**args)

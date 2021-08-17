@@ -1,17 +1,19 @@
-from ntpath import join
 import time
 import math
-from typing import List
+import numpy as np
+from numpy.lib.function_base import diff
 from pybullet_utils import pd_controller_stable
+from pybullet_examples.pdControllerExplicit import PDControllerExplicitMultiDof
 
 from config.humanoid_config import HumanoidConfig as c
 from src.mocapdata import State
-
+FLAG = True
 class HumanoidStablePD():
 
     def __init__(self, pybullet_client, timeStep):
         self._pb_client = pybullet_client
         self._stablePD = pd_controller_stable.PDControllerStableMultiDof(self._pb_client)
+        self._explicitPD = PDControllerExplicitMultiDof(self._pb_client)
         self._kpOrg = c.Kp
         self._kdOrg = c.Kd
         self._jointIndicesAll = c.controllableJointIndicesAll
@@ -41,6 +43,7 @@ class HumanoidStablePD():
         ## 设置参数
         # self._sim_model 摩擦力
         self._pb_client.changeDynamics(self._sim_model, -1, lateralFriction=0.9)
+        self._pb_client.changeDynamics(self._sim_model, -1, linearDamping=0, angularDamping=0)
         for i in range(self._pb_client.getNumJoints(self._sim_model)):
             self._pb_client.changeDynamics(self._sim_model, i, lateralFriction=0.9)
         
@@ -80,6 +83,7 @@ class HumanoidStablePD():
                 velocityGain=1,
                 force=[0, 0, 0]
             )
+        
 
     def initPose(self, pose, phys_model, is_initBase, is_initVel):
         """ 初始化物理模型的pose和velocity
@@ -159,6 +163,14 @@ class HumanoidStablePD():
                                         kds=self._kdOrg,
                                         maxForces=maxForces,
                                         timeStep=self._simTimeStep)
+        # taus = self._explicitPD.computePD(bodyUniqueId=self._sim_model,
+        #                                 jointIndices=self._jointIndicesAll,
+        #                                 desiredPositions=desiredPositions,
+        #                                 desiredVelocities=desiredVelocities,
+        #                                 kps=self._kpOrg,
+        #                                 kds=self._kdOrg,
+        #                                 maxForces=maxForces,
+        #                                 timeStep=self._simTimeStep)
         return taus
         
     def applyPDForces(self, taus):
@@ -190,8 +202,9 @@ class HumanoidStablePD():
                                                         forces=forces)
 
 
-    def simulation(self, desiredPosition, sampleTimeStep, displayFPS):
-        """ 执行仿真
+    def simulation(self, desiredPosition, sampleTimeStep, displayFPS, useFPS):
+        """ 执行仿真 
+            PD控制, 只需要targetPosition, 不需要targetVelocity
         
         Args:
             sampleTimeStep -- 采样时间 用于自动计算仿真次数
@@ -215,12 +228,13 @@ class HumanoidStablePD():
             taus = self.computePDForces(desiredPosition, desiredVelocities=None, maxForces=c.maxForces)
             self.applyPDForces(taus)
             self._pb_client.stepSimulation()
-            time.sleep(1./displayFPS) # 显示FPS
+            if useFPS:
+                time.sleep(1./displayFPS) # 显示FPS
 
         ## 返回仿真结果及cost
         # 仿真结果是base的平移,旋转,线速度和角速度, 以及各个可控关节的旋转和角速度
         # cost是一个标量
-
+        
         sim_basePos, sim_baseOrn = self._pb_client.getBasePositionAndOrientation(self._sim_model) 
         sim_baseLinVel, sim_baseAngVel = self._pb_client.getBaseVelocity(self._sim_model)
         sim_jointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, c.linkIndicesAll)
@@ -260,6 +274,8 @@ class HumanoidStablePD():
         )
 
         cost = self.computeCost()
+
+        self._pb_client.resetSimulation()
         
         return simulatedState, cost
 
@@ -268,25 +284,115 @@ class HumanoidStablePD():
         
         目前包含两项:
             1. 可控joints的旋转和速度
-            2. root的平移,旋转,线速度,角速度
+            2. root的旋转,角速度
+            3. end-effector
 
         """
-        pose_err = 0
-        vel_err = 0
-        root_err = 0
 
-        # Pose Control
 
-        num_joints = self._pb_client.getNumJoints(self._kin_model)
+        pose_weight = c.pose_weight
+        root_weight = c.root_weight
+        end_effector_weight = c.end_effector_weight
+        balance_weight = c.balance_weight
+
+        pose_cost = self.computePoseCost(pose_weight)
+        root_cost = self.computeRootCost(root_weight)
+        end_effector_cost = self.computeEndEffectorCost(end_effector_weight)
+        balance_cost = self.ComputeBalanceCost(balance_weight)
+
+        final_cost = pose_cost + root_cost + end_effector_cost + balance_cost
+
+        # print(f'pose_cost={pose_cost}  root_cost={root_cost}  end_effector_cost={end_effector_cost}  balance_cost={balance_cost}')
+
+        return final_cost
+
+    def computeCOMposVel(self, uid: int):
+        """Compute center-of-mass position and velocity."""
+        pb = self._pb_client
+        num_joints = 15
+        jointIndices = range(num_joints)
+        link_states = pb.getLinkStates(uid, jointIndices, computeLinkVelocity=1)
+        link_pos = np.array([s[0] for s in link_states])
+        link_vel = np.array([s[-2] for s in link_states])
+        tot_mass = 0.
+        masses = []
+        for j in jointIndices:
+            mass_, *_ = pb.getDynamicsInfo(uid, j)
+            masses.append(mass_)
+            tot_mass += mass_
+        masses = np.asarray(masses)[:, None]
+        com_pos = np.sum(masses * link_pos, axis=0) / tot_mass
+        com_vel = np.sum(masses * link_vel, axis=0) / tot_mass
+        return com_pos, com_vel
+
+    def ComputeBalanceCost(self, weight):
+        """ 只计算position, 因为kin模型的link速度无法获取 """
+        error = 0.0
+
+        end_effectors = [c.rightAnkle, c.rightWrist, c.leftAnkle, c.leftWrist]
+        num = len(end_effectors)
+
+        simLinkStates = self._pb_client.getLinkStates(self._sim_model, c.linkIndicesAll)
+        kinLinkStates = self._pb_client.getLinkStates(self._kin_model, c.linkIndicesAll)
+
+        sim_com_pos, _ = self.computeCOMposVel(self._sim_model)
+        kin_com_pos, _ = self.computeCOMposVel(self._kin_model)
+
+        for index in end_effectors:
+            sim_link_state = simLinkStates[index]
+            kin_link_state = kinLinkStates[index]
+
+            sim_link_pos = sim_link_state[0] # 世界坐标系
+            kin_link_pos = kin_link_state[0]
+
+            # 计算xz平面的相对坐标
+            sim_link_posRel = [
+                sim_com_pos[0] - sim_link_pos[0],
+                0.0,
+                sim_com_pos[2] - sim_link_pos[2],
+            ]
+
+            kin_link_posRel = [
+                kin_com_pos[0] - kin_link_pos[0],
+                0.0,
+                kin_com_pos[2] - kin_link_pos[2],
+            ]
+
+            diff = [
+                sim_link_posRel[0] - kin_link_posRel[0],
+                sim_link_posRel[1] - kin_link_posRel[1],
+                sim_link_posRel[2] - kin_link_posRel[2],
+            ]
+
+            error += math.sqrt(diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2])
+
+        if num > 0:
+            error /= num
+        
+        return weight * error
+
+    def computePoseCost(self, weight):
+        """ 计算所有可以控制的关节的旋转及角速度
+        
+        """
+        
+        pose_err = 0.0
+        vel_err = 0.0
+
+        # We usually just use wi=1, and just the weights to produce more motion variants.
+        # plz see the SamCon paper
         mJointWeights = [
-        0.20833, 0.10416, 0.0625, 0.10416, 0.0625, 0.041666666666666671, 0.0625, 0.0416, 0.00,
-        0.10416, 0.0625, 0.0416, 0.0625, 0.0416, 0.0000
+            0.0, 1.0, 1.0, 
+            1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+            1.0, 1.0, 1.0, 1.0, 1.0, 0.0
         ]
+        assert len(mJointWeights) == len(c.linkIndicesAll)
 
         jointIndicesControllable = c.controllableJointIndicesAll # 只计算可以控制的joint, 因为fixed类型的joint读出来的信息都是0
-        jointIndicesAll = range(num_joints)
-        simJointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, jointIndicesAll)
-        kinJointStates = self._pb_client.getJointStatesMultiDof(self._kin_model, jointIndicesAll)
+        num = len(jointIndicesControllable)
+
+        simJointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, c.linkIndicesAll)
+        kinJointStates = self._pb_client.getJointStatesMultiDof(self._kin_model, c.linkIndicesAll)
         
         for j in jointIndicesControllable:
             curr_pose_err = 0
@@ -297,81 +403,86 @@ class HumanoidStablePD():
 
             if len(simJointInfo[0]) == 1: # joint type: revolute 1-Dof
                 angle = simJointInfo[0][0] - kinJointInfo[0][0]
-                curr_pose_err = angle * angle
+                curr_pose_err = math.sqrt(angle * angle)
                 velDiff = simJointInfo[1][0] - kinJointInfo[1][0]
-                curr_vel_err = velDiff * velDiff
+                curr_vel_err = math.sqrt(velDiff * velDiff)
             if len(simJointInfo[0]) == 4: # joint type: spherical 3-Dof
                 diffQuat = self._pb_client.getDifferenceQuaternion(simJointInfo[0], kinJointInfo[0])
                 axis, angle = self._pb_client.getAxisAngleFromQuaternion(diffQuat)
-                curr_pose_err = angle * angle
+                curr_pose_err = math.sqrt(angle * angle)
                 diffVel = [
                     simJointInfo[1][0] - kinJointInfo[1][0], 
                     simJointInfo[1][1] - kinJointInfo[1][1],
                     simJointInfo[1][2] - kinJointInfo[1][2]
                 ]
-                curr_vel_err = diffVel[0] * diffVel[0] + diffVel[1] * diffVel[1] + diffVel[2] * diffVel[2]
+                curr_vel_err = math.sqrt(diffVel[0] * diffVel[0] + diffVel[1] * diffVel[1] + diffVel[2] * diffVel[2])
             pose_err += w * curr_pose_err
-            vel_err += w * curr_vel_err
+            vel_err += 0.1 * curr_vel_err
+
+        error = (pose_err + vel_err) / num
         
+        return weight * error
 
-        # Root Control 
-        # 包括线速度, 角速度, 平移, 旋转
-        # 实际上是用的都是base的信息, 但该urdf root joint和base位于同一点
-        # 而且root为fixed, 读出来的信息都是0
+    def computeRootCost(self, weight):
+        """ Root Orientation and Angle Velocity
+        
+        1. 只考虑方向和角速度, 丢全局平移和线速度
+        2. 因为root joint为fixed type, 所以getJointInfo读出来的信息都是0, 因此实际上用的都是base的信息
+        humanoid.urdf 的root joint和base位于同一点, 所以可以用base来替代root
 
-        rootPosSim, rootOrnSim = self._pb_client.getBasePositionAndOrientation(self._sim_model)
-        rootPosKin, rootOrnKin = self._pb_client.getBasePositionAndOrientation(self._kin_model)
-        linVelSim, angVelSim = self._pb_client.getBaseVelocity(self._sim_model)
-        rootJointInfo = simJointStates
+        """
+
+        rot_error = 0.0
+        angVel_error = 0.0
+
+        sim_base_pos, sim_base_orn = self._pb_client.getBasePositionAndOrientation(self._sim_model)
+        kin_base_pos, kin_base_orn = self._pb_client.getBasePositionAndOrientation(self._kin_model)
+        sim_base_linVel, sim_base_angVel = self._pb_client.getBaseVelocity(self._sim_model)
         # don't read the velocities from the kinematic model (they are zero), use the pose interpolator velocity
-        # see also issue https://github.com/bulletphysics/bullet3/issues/2401 
-        linVelKin = self._desiredState.baseLinVel
-        angVelKin = self._desiredState.baseAngVel
+        # see also issue https://github.com/bulletphysics/bullet3/issues/2401
+        kin_base_linVel = self._desiredState.baseLinVel
+        kin_base_angVel = self._desiredState.baseAngVel
 
-        root_pos_diff = [
-            rootPosSim[0] - rootPosKin[0], rootPosSim[1] - rootPosKin[1], rootPosSim[2] - rootPosKin[2]
+        diffQuat = self._pb_client.getDifferenceQuaternion(sim_base_orn, kin_base_orn)
+        axis, angle = self._pb_client.getAxisAngleFromQuaternion(diffQuat)
+        rot_error += math.sqrt(angle * angle)
+
+        diffAngVel = [
+            sim_base_angVel[0] - kin_base_angVel[0],
+            sim_base_angVel[1] - kin_base_angVel[1],
+            sim_base_angVel[2] - kin_base_angVel[2]
         ]
-        root_pos_err = root_pos_diff[0] * root_pos_diff[0] + root_pos_diff[1] * root_pos_diff[1] + root_pos_diff[2] * root_pos_diff[2]
 
-        root_rot_diffQuat = self._pb_client.getDifferenceQuaternion(rootOrnSim, rootOrnKin)
-        axis, angle = self._pb_client.getAxisAngleFromQuaternion(root_rot_diffQuat)
-        root_rot_err = mJointWeights[c.root] * angle * angle
+        angVel_error += math.sqrt(
+            diffAngVel[0] * diffAngVel[0] + diffAngVel[1] * diffAngVel[1] + diffAngVel[2] * diffAngVel[2]
+        )
 
-        root_vel_diff = [
-            linVelSim[0] - linVelKin[0], linVelSim[1] - linVelKin[1], linVelSim[2] - linVelKin[2]
-        ]   
-        root_vel_err = root_vel_diff[0] * root_vel_diff[0] + root_vel_diff[1] * root_vel_diff[1] + root_vel_diff[2] * root_vel_diff[2]
-        
-        root_ang_vel_diff = [
-            angVelSim[0] - angVelKin[0], angVelSim[1] - angVelKin[1], angVelSim[2] - angVelKin[2]
-        ] 
-        root_ang_vel_err = root_ang_vel_diff[0] * root_ang_vel_diff[0] + root_ang_vel_diff[1] * root_ang_vel_diff[1] + root_ang_vel_diff[2] * root_ang_vel_diff[2]
-        root_ang_vel_err =  mJointWeights[c.root] * root_ang_vel_err
-
-        root_err = root_pos_err + 0.1 * root_rot_err + 0.01 * root_vel_err + 0.001 * root_ang_vel_err
+        return weight * (rot_error + 0.1 * angVel_error)
         
 
-        # final cost加权系数
-        pose_w = 0.5
-        vel_w = 0.05
-        root_w = 0.2
 
-        # normalize
-        total_w = pose_w + vel_w
-        pose_w /= total_w
-        vel_w /= total_w
-        root_w /= total_w
+    def computeEndEffectorCost(self, weight):
+        """ 末端执行器(hands+feet) """
 
-        # scale系数
-        pose_scale = 2
-        vel_scale = 0.1
-        root_scale = 5
+        error = 0.0
 
+        end_effectors = [c.rightAnkle, c.rightWrist, c.leftAnkle, c.leftWrist]
+        num = len(end_effectors)
 
-        pose_cost = math.exp(+pose_scale * pose_err)
-        vel_cost = math.exp(+vel_scale * vel_err)
-        root_cost = math.exp(+root_scale * root_err)
+        simLinkStates = self._pb_client.getLinkStates(self._sim_model, c.linkIndicesAll)
+        kinLinkStates = self._pb_client.getLinkStates(self._kin_model, c.linkIndicesAll)
 
-        final_cost = pose_w * pose_cost + vel_w * vel_cost + root_w * root_cost
+        for index in end_effectors:
+            sim_link_state = simLinkStates[index]
+            kin_link_state = kinLinkStates[index]
 
-        return final_cost
+            sim_link_pos = sim_link_state[0] # 世界坐标系
+            kin_link_pos = kin_link_state[0]
+
+            diff = abs(sim_link_pos[1] - kin_link_pos[1]) # 计算y方向的差
+            error += diff
+
+        if num > 0:
+            error /= num
+        
+        return weight * error

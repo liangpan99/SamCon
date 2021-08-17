@@ -129,32 +129,24 @@ class HumanoidConfig():
 
     """ 采样窗口大小 """
     samplingWindow = [
-        [0.1, 0.1, 0.1],      # chest
+        [0.1, 0.1, 0.3],      # chest
         [0.2, 0.2, 0.2],      # neck
-        [0.1, 0.4, 0.4],      # right hip
+        [0.3, 0.1, 0.6],      # right hip
         [0.4],                # right knee
-        [0.1, 0.2, 0.4],      # right ankle
+        [0.1, 0.2, 0.6],      # right ankle
         [0.2, 0.2, 0.2],      # right shoulder
         [0.0],                # right elbow
-        [0.1, 0.4, 0.4],      # left hip
+        [0.3, 0.1, 0.6],      # left hip
         [0.4],                # left knee
-        [0.1, 0.2, 0.4],      # left ankle
+        [0.1, 0.2, 0.6],      # left ankle
         [0.2, 0.2, 0.2],      # left shoulder
         [0.0],                # left elbow
     ]
 
-    # samplingWindow = [
-    #     [0.0, 0.0, 0.1],      # chest
-    #     [0.0, 0.0, 0.1],      # neck
-    #     [0.0, 0.0, 0.785],      # right hip
-    #     [0.4],                # right knee
-    #     [0.1, 0.2, 0.785],      # right ankle
-    #     [0.0, 0.0, 0.0],      # right shoulder
-    #     [0.0],                # right elbow
-    #     [0.0, 0.0, 0.785],      # left hip
-    #     [0.4],                # left knee
-    #     [0.1, 0.2, 0.785],      # left ankle
-    #     [0.0, 0.0, 0.0],      # left shoulder
-    #     [0.0],                # left elbow
-    # ]
+
+    """ cost 权值 """
+    pose_weight = 8
+    root_weight = 5
+    end_effector_weight = 30
+    balance_weight = 20
     
