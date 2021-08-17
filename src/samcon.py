@@ -7,12 +7,12 @@ from src.simulation import HumanoidStablePD
 from src.mocapdata import PybulletMocapData, State
 from config.humanoid_config import HumanoidConfig as c
 
-INIT_STATE_INDEX = 0
-TARGET_STATE_INDEX = 1
-SAMPLED_TARGET_STATE_INDEX = 2
-SIM_TARGET_STATE_INDEX = 3
-COST_INDEX = 4
-BULLET_STATE_INDEX = 5
+INIT_BULLET_STATE_INDEX = 0
+END_BULLET_STATE_INDEX = 1
+TARGET_STATE_INDEX = 2
+SAMPLED_TARGET_STATE_INDEX = 3
+SIM_TARGET_STATE_INDEX = 4
+COST_INDEX = 5
 
 offset = 0.0 # 0.2 # 时间偏移
 
@@ -42,26 +42,19 @@ class SamCon():
         assert self._nSample % self._nSave == 0
         assert self._nSaveFinal <= self._nSave
 
-        """
-        SM = [
-            t=0 [ [0.0, 0.0, initState, 0.0, 0.0], [], ..., [] ],
-            t=1 [ [initState, targetState, simTargetState, cost, bulletState], [], ..., []],
-            t=2 [],
-        ]
-        
-        每次仿真nSample次，然后一起计算cost
-
-        """
-
         startTime = time.clock()
+        """
+        
+        [initBulletState, endBulletState, targetState, sampledTargetState, simTargetState, cost]
 
+        """
         SM = []
 
         # initialize SM[0]
         SM.append([])
         firstInitState = self._mocap_data.getSpecTimeState(t=0.0+offset)
         for i in range(self._nSave):
-            SM[0].append([0.0, 0.0, 0.0, firstInitState, 0.0, 0.0]) # [initState, targetState, sampledTargetState, simTargetState, cost, bulletState]
+            SM[0].append([0.0, firstInitState, 0.0, 0.0, 0.0, 0.0])
 
         for t in range(1, self._nIter+1):
             
@@ -72,23 +65,22 @@ class SamCon():
             S = []
             cost_list = []
             for state_set in SM[t-1]:
-                init_state = state_set[SIM_TARGET_STATE_INDEX]
-                bullet_state = state_set[BULLET_STATE_INDEX]
+                init_bullet_state = state_set[END_BULLET_STATE_INDEX]
 
                 for i in range(nSampleEachInitState):
                     
                     # 必须用这种方式加载pybullet world state
                     if t != 1:
-                        self._pb_client.restoreState(bullet_state)
+                        self._pb_client.restoreState(init_bullet_state)
                     if t == 1:
-                        self._humanoid.resetState(init_state, None)
+                        self._humanoid.resetState(init_bullet_state, None)
 
                     sampled_target_state = self.sample(target_state) # 只修改pose
                     self._humanoid.resetState(None, target_state)
                     sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
-                    bullet_state_id = self._pb_client.saveState()
-                    S.append([init_state, target_state, sampled_target_state, sim_target_state, cost, bullet_state_id])
-                    # print(f'iter: {t},  cost: {cost}')
+                    end_bullet_state = self._pb_client.saveState()
+                    S.append([init_bullet_state, end_bullet_state, target_state, sampled_target_state, sim_target_state, cost])
+                    
                     cost_list.append(cost)
             
             # # 从nSample个样本中挑nSave个最小的保存
@@ -134,20 +126,16 @@ class SamCon():
             path = []
             path.append(pathId)
 
-            currTime_initState = SM[-1][pathId][INIT_STATE_INDEX]
-            currTime_initState = np.array(self.getListFromNamedtuple(currTime_initState))
+            currTime_initBulletState = SM[-1][pathId][INIT_BULLET_STATE_INDEX]
             for i in range(self._nIter-1): # 只需要比较nIter-1次
                 lastTime = -2 - i
                 for j in range(self._nSave):
-                    lastTime_simTargetState = SM[lastTime][j][SIM_TARGET_STATE_INDEX]
-                    lastTime_simTargetState = np.array(self.getListFromNamedtuple(lastTime_simTargetState))
+                    lastTime_endBulletState = SM[lastTime][j][END_BULLET_STATE_INDEX]
                     # 当前时刻的初始状态等于上一时刻的仿真结果, 则说明两者属于同一条path
-                    # 存在潜在的BUG: 两者的值恰巧相等, 实际上并无对应关系
-                    # TBD: 使用唯一标记来标识每次的仿真
-                    if int((lastTime_simTargetState - currTime_initState).sum()) == 0:
+                    # 使用唯一标记来标识每次的仿真
+                    if lastTime_endBulletState == currTime_initBulletState:
                         path.insert(0, j)
-                        currTime_initState = SM[lastTime][j][INIT_STATE_INDEX]
-                        currTime_initState = np.array(self.getListFromNamedtuple(currTime_initState))
+                        currTime_initBulletState = SM[lastTime][j][INIT_BULLET_STATE_INDEX]
                         break
                     
             path_list.append(path)
@@ -314,7 +302,7 @@ class SamCon():
             
 
             # 保存t=0的初始状态
-            t0_state = SM[0][0][SIM_TARGET_STATE_INDEX]
+            t0_state = SM[0][0][END_BULLET_STATE_INDEX]
             t0_state = self.getListFromNamedtuple(t0_state)
 
             # 保存t=0之后时刻的reference states, sampled_states, simulated states
