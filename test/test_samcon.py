@@ -58,7 +58,7 @@ def main(**args):
     path = pybullet_data.getDataPath() + args.get('data_path')
     samcon = SamCon(p, simTimeStep, sampleTimeStep, savePath)
 
-    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+    samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
     animating = False
     while(p.isConnected()):
@@ -68,7 +68,7 @@ def main(**args):
         
         if animating:
           # samcon.test(savePath, fps, useFPS)
-          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+          # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
 
           pass
@@ -76,7 +76,7 @@ def main(**args):
 
 
 if __name__ == '__main__':
-    flag = 1
+    flag = 0
     args = {
         'useGUI': flag,
 
@@ -94,8 +94,8 @@ if __name__ == '__main__':
         'displayFPS': 800,
 
         'nIter': 15,
-        'nSample': 10,
-        'nSave': 2,
-        'nSaveFinal': 2
+        'nSample': 300,
+        'nSave': 50,
+        'nSaveFinal': 10
     }
     main(**args)

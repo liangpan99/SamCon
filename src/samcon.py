@@ -12,6 +12,7 @@ TARGET_STATE_INDEX = 1
 SAMPLED_TARGET_STATE_INDEX = 2
 SIM_TARGET_STATE_INDEX = 3
 COST_INDEX = 4
+BULLET_STATE_INDEX = 5
 
 offset = 0.0 # 0.2 # 时间偏移
 
@@ -43,8 +44,8 @@ class SamCon():
 
         """
         SM = [
-            t=0 [ [0.0, 0.0, initState, 0.0], [], ..., nSave ],
-            t=1 [ [initState, targetState, simTargetState, cost], [], ..., nSave],
+            t=0 [ [0.0, 0.0, initState, 0.0, 0.0], [], ..., [] ],
+            t=1 [ [initState, targetState, simTargetState, cost, bulletState], [], ..., []],
             t=2 [],
         ]
         
@@ -60,7 +61,7 @@ class SamCon():
         SM.append([])
         firstInitState = self._mocap_data.getSpecTimeState(t=0.0+offset)
         for i in range(self._nSave):
-            SM[0].append([0.0, 0.0, 0.0, firstInitState, 0.0]) # [initState, targetState, sampledTargetState, simTargetState, cost]
+            SM[0].append([0.0, 0.0, 0.0, firstInitState, 0.0, 0.0]) # [initState, targetState, sampledTargetState, simTargetState, cost, bulletState]
 
         for t in range(1, self._nIter+1):
             
@@ -70,15 +71,21 @@ class SamCon():
             target_state = self._mocap_data.getSpecTimeState(t*self._sampleTimeStep+offset)
             S = []
             cost_list = []
-            for init_state in SM[t-1]:
-                init_state = init_state[SIM_TARGET_STATE_INDEX]
+            for state_set in SM[t-1]:
+                init_state = state_set[SIM_TARGET_STATE_INDEX]
+                bullet_state = state_set[BULLET_STATE_INDEX]
 
                 for i in range(nSampleEachInitState):
+                    
+                    # 必须用这种方式加载pybullet world state
+                    if t != 1:
+                        self._pb_client.restoreState(bullet_state)
 
                     sampled_target_state = self.sample(target_state) # 只修改pose
                     self._humanoid.resetState(init_state, target_state)
                     sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
-                    S.append([init_state, target_state, sampled_target_state, sim_target_state, cost])
+                    bullet_state_id = self._pb_client.saveState()
+                    S.append([init_state, target_state, sampled_target_state, sim_target_state, cost, bullet_state_id])
                     # print(f'iter: {t},  cost: {cost}')
                     cost_list.append(cost)
             

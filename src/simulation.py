@@ -274,8 +274,6 @@ class HumanoidStablePD():
         )
 
         cost = self.computeCost()
-
-        self._pb_client.resetSimulation()
         
         return simulatedState, cost
 
