@@ -80,9 +80,11 @@ class SamCon():
                     # 必须用这种方式加载pybullet world state
                     if t != 1:
                         self._pb_client.restoreState(bullet_state)
+                    if t == 1:
+                        self._humanoid.resetState(init_state, None)
 
                     sampled_target_state = self.sample(target_state) # 只修改pose
-                    self._humanoid.resetState(init_state, target_state)
+                    self._humanoid.resetState(None, target_state)
                     sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
                     bullet_state_id = self._pb_client.saveState()
                     S.append([init_state, target_state, sampled_target_state, sim_target_state, cost, bullet_state_id])

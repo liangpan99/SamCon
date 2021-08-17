@@ -85,17 +85,17 @@ if __name__ == '__main__':
         'cameraPitch': -50,
         'cameraTargetPosition': [0, 1, 1],
 
-        'data_path': "/data/motions/humanoid3d_walk.txt",
-        'save_path': './data/reconstructed_motion/result_7.0_resetSim.txt',
+        'data_path': "/data/motions/humanoid3d_roll.txt",
+        'save_path': './data/reconstructed_motion/result_7.7_resetSim_roll.txt',
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,
-        'useFPS': flag,
+        'useFPS': 0,
         'displayFPS': 800,
 
-        'nIter': 15,
-        'nSample': 300,
-        'nSave': 50,
-        'nSaveFinal': 10
+        'nIter': 19,
+        'nSample': 1000,
+        'nSave': 100,
+        'nSaveFinal': 20
     }
     main(**args)
