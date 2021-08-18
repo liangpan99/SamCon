@@ -1,8 +1,15 @@
 # SamCon_pybullet
-for SIGGRAPH2010 paper [SamCon](http://libliu.info/Samcon/Samcon.html)
+[Pybullet](https://pybullet.org/wordpress/) implementation of [SamCon](http://libliu.info/Samcon/Samcon.html) (SIGGRAPH 2010 paper "Sampling-based Contact-rich Motion Control").
 
-TBD: semantic sampling time step  
-parallel
+![image](https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_referenceMotion.gif)
+
+![image](https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_modifiedMotion.gif)
+
+## TBD:   
+semantic sampling time step  
+parallel  
+refine code  
+refine readme
 
 ## Dependencies
 ``` python
