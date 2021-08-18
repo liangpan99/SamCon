@@ -9,6 +9,7 @@ import pybullet as p
 import pybullet_data
 
 from src.samcon import SamCon
+from src.mocapdata import PybulletMocapData
 
 def isKeyTriggered(keys, key):
   o = ord(key)
@@ -35,6 +36,9 @@ def main(**args):
     nSaveFinal = args.get('nSaveFinal')
     savePath = args.get('save_path')
     useGUI = args.get('useGUI')
+    dataFolder = args.get('data_folder')
+    dataName = args.get('data_name')
+
     if useGUI:
       p.connect(p.GUI)
     else:
@@ -55,10 +59,14 @@ def main(**args):
     plane = p.loadURDF('plane_implicit.urdf', [0, 0, 0], z2y, useMaximalCoordinates=True)
     p.changeDynamics(plane, linkIndex=-1, lateralFriction=0.9)
     
-    path = pybullet_data.getDataPath() + args.get('data_path')
+    path = pybullet_data.getDataPath() + dataFolder + dataName
     samcon = SamCon(p, simTimeStep, sampleTimeStep, savePath)
+    # mocap_data = PybulletMocapData(path, p)
+    # nIter = int(mocap_data.getCycleTime() / sampleTimeStep)
 
-    samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+    # print(f'data_name: {dataName}, nIter: {nIter}')
+    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+    
 
     animating = False
     while(p.isConnected()):
@@ -67,35 +75,35 @@ def main(**args):
             animating = not animating
         
         if animating:
-          # samcon.test(savePath, fps, useFPS)
+          samcon.test(savePath, fps, useFPS)
           # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
 
           pass
-        
-
+      
 
 if __name__ == '__main__':
-    flag = 0
+    flag = 1
     args = {
         'useGUI': flag,
 
-        'cameraDistance': 2,
+        'cameraDistance': 1,
         'cameraYaw': 180,
         'cameraPitch': -50,
         'cameraTargetPosition': [0, 1, 1],
 
-        'data_path': "/data/motions/humanoid3d_roll.txt",
-        'save_path': './data/reconstructed_motion/result_7.7_resetSim_roll.txt',
+        'data_folder': "/data/motions/",
+        'data_name': "humanoid3d_getup_faceup.txt",
+        'save_path': './data/reconstructed_motion/result_9.0_roll.txt',
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,
-        'useFPS': 0,
+        'useFPS': flag,
         'displayFPS': 800,
 
-        'nIter': 19,
-        'nSample': 1000,
-        'nSave': 100,
-        'nSaveFinal': 20
+        'nIter': 12,
+        'nSample': 1400,
+        'nSave': 200,
+        'nSaveFinal': 10
     }
     main(**args)

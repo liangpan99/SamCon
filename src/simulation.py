@@ -1,7 +1,6 @@
 import time
 import math
 import numpy as np
-from numpy.lib.function_base import diff
 from pybullet_utils import pd_controller_stable
 from pybullet_examples.pdControllerExplicit import PDControllerExplicitMultiDof
 
