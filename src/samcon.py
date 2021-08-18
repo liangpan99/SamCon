@@ -204,7 +204,7 @@ class SamCon():
                 simulated_state = self.getStateFromList(simulated_state)
 
                 self._humanoid.resetState(start_state=None, end_state=reference_state)
-                state, _ = self._humanoid.simulation(reference_state, sampleTimeStep, displayFPS, useFPS)
+                state, _ = self._humanoid.simulation(sampled_state, sampleTimeStep, displayFPS, useFPS)
 
                 state_1 = self.getListFromNamedtuple(state)
                 state_2 = self.getListFromNamedtuple(simulated_state)
