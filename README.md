@@ -1,9 +1,12 @@
 # SamCon_pybullet
-[Pybullet](https://pybullet.org/wordpress/) implementation of [SamCon](http://libliu.info/Samcon/Samcon.html) (SIGGRAPH 2010 paper "Sampling-based Contact-rich Motion Control").
+[Pybullet](https://pybullet.org/wordpress/) implementation of [SamCon](http://libliu.info/Samcon/Samcon.html) (SIGGRAPH 2010 paper "Sampling-based Contact-rich Motion Control").  
 
-![image](https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_referenceMotion.gif)
+Humanoid cannot track the reference motion by using PD controllers.  
+<img src="https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_referenceMotion.gif" width="576" height="432" alt="gif"/><br/>
 
-![image](https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_modifiedMotion.gif)
+Use SamCon to reconstruct a modified motion which can be tracked by using PD controllers.  
+<img src="https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_modifiedMotion.gif" width="576" height="432" alt="gif"/><br/>
+
 
 ## TBD:   
 semantic sampling time step  
