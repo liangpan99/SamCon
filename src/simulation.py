@@ -2,17 +2,15 @@ import time
 import math
 import numpy as np
 from pybullet_utils import pd_controller_stable
-from pybullet_examples.pdControllerExplicit import PDControllerExplicitMultiDof
 
 from config.humanoid_config import HumanoidConfig as c
 from src.mocapdata import State
-FLAG = True
+
 class HumanoidStablePD():
 
     def __init__(self, pybullet_client, timeStep):
         self._pb_client = pybullet_client
         self._stablePD = pd_controller_stable.PDControllerStableMultiDof(self._pb_client)
-        self._explicitPD = PDControllerExplicitMultiDof(self._pb_client)
         self._kpOrg = c.Kp
         self._kdOrg = c.Kd
         self._jointIndicesAll = c.controllableJointIndicesAll
@@ -22,7 +20,7 @@ class HumanoidStablePD():
             self._totalDofs += dof
         self._simTimeStep = timeStep
 
-        # 从URDF文件中加载模型
+        # Load humanoid.urdf
         self._sim_model = self._pb_client.loadURDF(
             fileName = c.fileName,
             basePosition = c.basePos,
@@ -39,59 +37,57 @@ class HumanoidStablePD():
             flags = self._pb_client.URDF_MAINTAIN_LINK_ORDER
         )
 
-        ## 设置参数
-        # self._sim_model 摩擦力
-        self._pb_client.changeDynamics(self._sim_model, -1, lateralFriction=0.9)
-        self._pb_client.changeDynamics(self._sim_model, -1, linearDamping=0, angularDamping=0)
+        ## Set parameters
+        # self._sim_model: Friction, Motor
+        self._pb_client.changeDynamics(self._sim_model, -1, lateralFriction = 0.9)
+        self._pb_client.changeDynamics(self._sim_model, -1, linearDamping = 0, angularDamping = 0)
         for i in range(self._pb_client.getNumJoints(self._sim_model)):
-            self._pb_client.changeDynamics(self._sim_model, i, lateralFriction=0.9)
+            self._pb_client.changeDynamics(self._sim_model, i, lateralFriction = 0.9)
         
-        # self._kin_model 允许碰撞 设置透明度
-        self._pb_client.changeDynamics(
-            self._kin_model,
-            -1,
-            activationState=self._pb_client.ACTIVATION_STATE_SLEEP +
-                            self._pb_client.ACTIVATION_STATE_ENABLE_SLEEPING +
-                            self._pb_client.ACTIVATION_STATE_DISABLE_WAKEUP)
-        alpha = 0.7
-        for j in range(self._pb_client.getNumJoints(self._kin_model)):
-            self._pb_client.changeVisualShape(self._kin_model, j, rgbaColor=[1, 1, 1, alpha])
-            self._pb_client.setCollisionFilterGroupMask(
-                self._kin_model,
-                j,
-                collisionFilterGroup=0,
-                collisionFilterMask=0)
-        
-        # self._sim_model 初始化关节电机
         for j in self._jointIndicesAll:
             self._pb_client.setJointMotorControl2(
                 self._sim_model,
                 j,
                 self._pb_client.POSITION_CONTROL,
-                targetPosition=0,
-                positionGain=0,
-                targetVelocity=0,
-                force=0)
+                targetPosition = 0,
+                positionGain = 0,
+                targetVelocity = 0,
+                force= 0 )
             self._pb_client.setJointMotorControlMultiDof(
                 self._sim_model,
                 j,
                 self._pb_client.POSITION_CONTROL,
-                targetPosition=[0, 0, 0, 1],
-                targetVelocity=[0, 0, 0],
-                positionGain=0,
-                velocityGain=1,
-                force=[0, 0, 0]
+                targetPosition = [0, 0, 0, 1],
+                targetVelocity = [0, 0, 0],
+                positionGain = 0,
+                velocityGain = 1,
+                force = [0, 0, 0]
             )
         
+        # self._kin_model: allow collision, transparency
+        self._pb_client.changeDynamics(
+            self._kin_model,
+            -1,
+            activationState = self._pb_client.ACTIVATION_STATE_SLEEP +
+                              self._pb_client.ACTIVATION_STATE_ENABLE_SLEEPING +
+                              self._pb_client.ACTIVATION_STATE_DISABLE_WAKEUP)
+        alpha = 0.7
+        for j in range(self._pb_client.getNumJoints(self._kin_model)):
+            self._pb_client.changeVisualShape(self._kin_model, j, rgbaColor = [1, 1, 1, alpha])
+            self._pb_client.setCollisionFilterGroupMask(
+                self._kin_model,
+                j,
+                collisionFilterGroup = 0,
+                collisionFilterMask = 0)
 
     def initPose(self, pose, phys_model, is_initBase, is_initVel):
-        """ 初始化物理模型的pose和velocity
+        """ Reset humanoid's position and velocity
 
         Args:
-            pose -- 自定义类型 collections.namedtuple
-            phys_model -- 待初始化的机器人Id
-            is_initBase -- 是否对base进行初始化
-            is_initVel -- 是否对速度进行初始化
+            pose -- collections.namedtuple State
+            phys_model -- int
+            is_initBase -- bool
+            is_initVel -- bool
         
         """
         if is_initVel:
@@ -131,51 +127,36 @@ class HumanoidStablePD():
 
 
     def resetState(self, start_state, end_state):
-        """ 重置状态 (state: position + velocity)"""
+        """ Reset state (state: position + velocity) """
         if end_state != None:
             self._desiredState = end_state
 
-            # 用end_state来重置self._kin_model
+            # Use end_state to reset the kinematic humanoid
             self.initPose(end_state, self._kin_model, is_initBase=True, is_initVel=True)
 
         if start_state != None:
-            # 用start_state来重置self._sim_model
-            # 允许修改base, 因为start_state本身就是仿真的结果
+            # Use start_state to reset the simulated humanoid
             self.initPose(start_state, self._sim_model, is_initBase=True, is_initVel=True)
 
 
     def computePDForces(self, desiredPositions, desiredVelocities, maxForces):
-        """ 使用pybullet官方实现的stablePD计算torques
-            Compute torques from the stable PD controller.
-            
-            只需传入target，观测值在ComputePD函数内部进行读取
-        """
+        """ Compute torques from the stable PD controller. """
 
         if desiredVelocities == None:
             desiredVelocities = [0] * self._totalDofs
         
-        taus = self._stablePD.computePD(bodyUniqueId=self._sim_model,
-                                        jointIndices=self._jointIndicesAll,
-                                        desiredPositions=desiredPositions,
-                                        desiredVelocities=desiredVelocities,
-                                        kps=self._kpOrg,
-                                        kds=self._kdOrg,
-                                        maxForces=maxForces,
-                                        timeStep=self._simTimeStep)
-        # taus = self._explicitPD.computePD(bodyUniqueId=self._sim_model,
-        #                                 jointIndices=self._jointIndicesAll,
-        #                                 desiredPositions=desiredPositions,
-        #                                 desiredVelocities=desiredVelocities,
-        #                                 kps=self._kpOrg,
-        #                                 kds=self._kdOrg,
-        #                                 maxForces=maxForces,
-        #                                 timeStep=self._simTimeStep)
+        taus = self._stablePD.computePD(bodyUniqueId = self._sim_model,
+                                        jointIndices = self._jointIndicesAll,
+                                        desiredPositions = desiredPositions,
+                                        desiredVelocities = desiredVelocities,
+                                        kps = self._kpOrg,
+                                        kds = self._kdOrg,
+                                        maxForces = maxForces,
+                                        timeStep = self._simTimeStep)
         return taus
         
     def applyPDForces(self, taus):
-        """ Apply pre-computed torques
-
-        """
+        """ Apply pre-computed torques """
         dofIndex = 7
         scaling = 1
         forces = []
@@ -198,22 +179,24 @@ class HumanoidStablePD():
         self._pb_client.setJointMotorControlMultiDofArray(self._sim_model,
                                                         self._jointIndicesAll,
                                                         self._pb_client.TORQUE_CONTROL,
-                                                        forces=forces)
+                                                        forces = forces)
 
 
     def simulation(self, desiredPosition, sampleTimeStep, displayFPS, useFPS):
-        """ 执行仿真 
-            PD控制, 只需要targetPosition, 不需要targetVelocity
+        """ Execute simulation
         
         Args:
-            sampleTimeStep -- 采样时间 用于自动计算仿真次数
+            desiredPosition -- collections.namedtuple State -- PD controller only need targetPosition
+            sampleTimeStep -- int -- for calculate simulation times
+            displayFPS -- int
+            useFPS -- bool
+
         Returns:
-            simulatedState -- 仿真结果 是collections.namedtuple自定义类型
-            cost
-        
+            simulatedState -- collections.namedtuple State
+            cost -- int
         """
 
-        # base不能控制, 因此需要7个0
+        # Base position cannot be controlled, so we need 7 zeros
         desiredPosition = [0, 0, 0, 0, 0, 0, 0] \
             + list(desiredPosition.chestRot) + list(desiredPosition.neckRot) \
             + list(desiredPosition.rightHipRot) + list(desiredPosition.rightKneeRot) + list(desiredPosition.rightAnkleRot) \
@@ -224,16 +207,14 @@ class HumanoidStablePD():
         
         numSim = int(sampleTimeStep / self._simTimeStep)
         for i in range(numSim):
-            taus = self.computePDForces(desiredPosition, desiredVelocities=None, maxForces=c.maxForces)
+            taus = self.computePDForces(desiredPosition, desiredVelocities = None, maxForces = c.maxForces)
             self.applyPDForces(taus)
             self._pb_client.stepSimulation()
             if useFPS:
-                time.sleep(1./displayFPS) # 显示FPS
+                time.sleep(1./displayFPS) # display FPS
 
-        ## 返回仿真结果及cost
-        # 仿真结果是base的平移,旋转,线速度和角速度, 以及各个可控关节的旋转和角速度
-        # cost是一个标量
-        
+
+        # Get simulatedState
         sim_basePos, sim_baseOrn = self._pb_client.getBasePositionAndOrientation(self._sim_model) 
         sim_baseLinVel, sim_baseAngVel = self._pb_client.getBaseVelocity(self._sim_model)
         sim_jointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, c.linkIndicesAll)
@@ -277,15 +258,14 @@ class HumanoidStablePD():
         return simulatedState, cost
 
     def computeCost(self):
-        """ 计算cost
+        """ Compute cost between kinematic humanoid and simulated humanoid.
         
-        目前包含两项:
-            1. 可控joints的旋转和速度
-            2. root的旋转,角速度
+        including 4 components:
+            1. controllable joints
+            2. root
             3. end-effector
-
+            4. balance
         """
-
 
         pose_weight = c.pose_weight
         root_weight = c.root_weight
@@ -308,7 +288,7 @@ class HumanoidStablePD():
         pb = self._pb_client
         num_joints = 15
         jointIndices = range(num_joints)
-        link_states = pb.getLinkStates(uid, jointIndices, computeLinkVelocity=1)
+        link_states = pb.getLinkStates(uid, jointIndices, computeLinkVelocity = 1)
         link_pos = np.array([s[0] for s in link_states])
         link_vel = np.array([s[-2] for s in link_states])
         tot_mass = 0.
@@ -318,12 +298,12 @@ class HumanoidStablePD():
             masses.append(mass_)
             tot_mass += mass_
         masses = np.asarray(masses)[:, None]
-        com_pos = np.sum(masses * link_pos, axis=0) / tot_mass
-        com_vel = np.sum(masses * link_vel, axis=0) / tot_mass
+        com_pos = np.sum(masses * link_pos, axis = 0) / tot_mass
+        com_vel = np.sum(masses * link_vel, axis = 0) / tot_mass
         return com_pos, com_vel
 
     def ComputeBalanceCost(self, weight):
-        """ 只计算position, 因为kin模型的link速度无法获取 """
+
         error = 0.0
 
         end_effectors = [c.rightAnkle, c.rightWrist, c.leftAnkle, c.leftWrist]
@@ -335,14 +315,16 @@ class HumanoidStablePD():
         sim_com_pos, _ = self.computeCOMposVel(self._sim_model)
         kin_com_pos, _ = self.computeCOMposVel(self._kin_model)
 
+        # only compute position, 
+        # because we cannot read the link velocity of kinematic humanoid
         for index in end_effectors:
             sim_link_state = simLinkStates[index]
             kin_link_state = kinLinkStates[index]
 
-            sim_link_pos = sim_link_state[0] # 世界坐标系
+            sim_link_pos = sim_link_state[0] # in world frame
             kin_link_pos = kin_link_state[0]
 
-            # 计算xz平面的相对坐标
+            # calculate relative coordinates in xz plane
             sim_link_posRel = [
                 sim_com_pos[0] - sim_link_pos[0],
                 0.0,
@@ -369,9 +351,7 @@ class HumanoidStablePD():
         return weight * error
 
     def computePoseCost(self, weight):
-        """ 计算所有可以控制的关节的旋转及角速度
-        
-        """
+        """ Compute all controllable joints' rotation and angle velocity. """
         
         pose_err = 0.0
         vel_err = 0.0
@@ -385,7 +365,9 @@ class HumanoidStablePD():
         ]
         assert len(mJointWeights) == len(c.linkIndicesAll)
 
-        jointIndicesControllable = c.controllableJointIndicesAll # 只计算可以控制的joint, 因为fixed类型的joint读出来的信息都是0
+        # only compute controllable joints, 
+        # because all information of fixed joint is 0.
+        jointIndicesControllable = c.controllableJointIndicesAll
         num = len(jointIndicesControllable)
 
         simJointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, c.linkIndicesAll)
@@ -421,13 +403,7 @@ class HumanoidStablePD():
         return weight * error
 
     def computeRootCost(self, weight):
-        """ Root Orientation and Angle Velocity
-        
-        1. 只考虑方向和角速度, 丢全局平移和线速度
-        2. 因为root joint为fixed type, 所以getJointInfo读出来的信息都是0, 因此实际上用的都是base的信息
-        humanoid.urdf 的root joint和base位于同一点, 所以可以用base来替代root
-
-        """
+        """ Root Orientation and Angle Velocity """
 
         rot_error = 0.0
         angVel_error = 0.0
@@ -459,7 +435,7 @@ class HumanoidStablePD():
 
 
     def computeEndEffectorCost(self, weight):
-        """ 末端执行器(hands+feet) """
+        """ End-effector Cost """
 
         error = 0.0
 
@@ -473,10 +449,10 @@ class HumanoidStablePD():
             sim_link_state = simLinkStates[index]
             kin_link_state = kinLinkStates[index]
 
-            sim_link_pos = sim_link_state[0] # 世界坐标系
+            sim_link_pos = sim_link_state[0] # in world frame
             kin_link_pos = kin_link_state[0]
 
-            diff = abs(sim_link_pos[1] - kin_link_pos[1]) # 计算y方向的差
+            diff = abs(sim_link_pos[1] - kin_link_pos[1]) # get y-axis error
             error += diff
 
         if num > 0:
