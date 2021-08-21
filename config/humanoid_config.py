@@ -1,14 +1,10 @@
-""" 
-    humanoid.urdf 模型的相关参数
-"""
+""" 适用于humanoid.urdf的参数, 还包括Samcon和Improving Samcon的算法参数 """
 
 import os
 
 class HumanoidConfig():
 
-    """ load URDF
-
-    """
+    """ load URDF """
     fileName = os.path.join(os.getcwd(), 'data/urdf/humanoid.urdf')
     basePos = [0, 0, 0]
     globalScale = 0.25
@@ -110,23 +106,6 @@ class HumanoidConfig():
         60,                     # left elbow
     ]
 
-    maxForcesInf = [
-        0, 0, 0,                                                    # base position
-        0, 0, 0, 0,                                                 # base orientation
-        float('inf'), float('inf'), float('inf'), float('inf'),     # chest
-        float('inf'), float('inf'), float('inf'), float('inf'),     # neck
-        float('inf'), float('inf'), float('inf'), float('inf'),     # right hip
-        float('inf'),                                               # right knee
-        float('inf'), float('inf'), float('inf'), float('inf'),     # right ankle
-        float('inf'), float('inf'), float('inf'), float('inf'),     # right shoulder
-        float('inf'),                                               # right elbow
-        float('inf'), float('inf'), float('inf'), float('inf'),     # left hip
-        float('inf'),                                               # left knee
-        float('inf'), float('inf'), float('inf'), float('inf'),     # left ankle
-        float('inf'), float('inf'), float('inf'), float('inf'),     # left shoulder
-        float('inf'),                                               # left elbow
-    ]
-
     """ 采样窗口大小 """
     samplingWindow = [
         [0.1, 0.1, 0.4],      # chest
@@ -150,3 +129,10 @@ class HumanoidConfig():
     end_effector_weight = 30
     balance_weight = 20
     
+    
+    """ Improving Samcon Parameters """
+
+    joint_dof_count = [3, 3, 3, 1, 3, 3, 1, 3, 1, 3, 3, 1] # euler angle
+    joint_dof_total = sum(joint_dof_count)
+    
+    default_sampling_window = 0.1
