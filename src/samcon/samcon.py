@@ -3,8 +3,8 @@ import json
 import math
 import numpy as np
 
-from src.simulation import HumanoidStablePD
-from src.mocapdata import PybulletMocapData, State
+from src.samcon.simulation import HumanoidStablePD
+from src.samcon.mocapdata import PybulletMocapData, State
 from config.humanoid_config import HumanoidConfig as c
 
 INIT_BULLET_STATE_INDEX = 0

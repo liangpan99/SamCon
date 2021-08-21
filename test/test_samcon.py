@@ -8,8 +8,8 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 
-from src.samcon import SamCon
-from src.mocapdata import PybulletMocapData
+from src.samcon.samcon import SamCon
+from src.samcon.mocapdata import PybulletMocapData
 
 def isKeyTriggered(keys, key):
   o = ord(key)
@@ -61,11 +61,11 @@ def main(**args):
     
     path = pybullet_data.getDataPath() + dataFolder + dataName
     samcon = SamCon(p, simTimeStep, sampleTimeStep, savePath)
-    # mocap_data = PybulletMocapData(path, p)
-    # nIter = int(mocap_data.getCycleTime() / sampleTimeStep)
+    mocap_data = PybulletMocapData(path, p)
+    nIter = int(mocap_data.getCycleTime() / sampleTimeStep)
 
-    # print(f'data_name: {dataName}, nIter: {nIter}')
-    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+    print(f'data_name: {dataName}, nIter: {nIter}')
+    samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
     
 
     animating = False
@@ -93,8 +93,8 @@ if __name__ == '__main__':
         'cameraTargetPosition': [0, 1, 1],
 
         'data_folder': "/data/motions/",
-        'data_name': "humanoid3d_getup_faceup.txt",
-        'save_path': './data/reconstructed_motion/result_9.0_roll.txt',
+        'data_name': "humanoid3d_jump.txt",
+        'save_path': './data/reconstructed_motion/result_9.0_jump.txt',
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,

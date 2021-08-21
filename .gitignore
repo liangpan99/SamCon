@@ -131,3 +131,5 @@ dmypy.json
 samcon-samcon-fromGitHub/
 data/
 .vscode/
+test/test_angVel.py
+test/test_multiprocess.py

@@ -4,7 +4,7 @@ import numpy as np
 from pybullet_utils import pd_controller_stable
 
 from config.humanoid_config import HumanoidConfig as c
-from src.mocapdata import State
+from src.samcon.mocapdata import State
 
 class HumanoidStablePD():
 
@@ -21,12 +21,18 @@ class HumanoidStablePD():
         self._simTimeStep = timeStep
 
         # Load humanoid.urdf
+        char_create_flags = self._pb_client.URDF_MAINTAIN_LINK_ORDER
+        self_collision = True
+        if self_collision:
+            char_create_flags = char_create_flags|\
+                                self._pb_client.URDF_USE_SELF_COLLISION|\
+                                self._pb_client.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
         self._sim_model = self._pb_client.loadURDF(
             fileName = c.fileName,
             basePosition = c.basePos,
             globalScaling = c.globalScale,
             useFixedBase = False,
-            flags = self._pb_client.URDF_MAINTAIN_LINK_ORDER
+            flags = char_create_flags
         )
 
         self._kin_model = self._pb_client.loadURDF(
@@ -39,8 +45,8 @@ class HumanoidStablePD():
 
         ## Set parameters
         # self._sim_model: Friction, Motor
-        self._pb_client.changeDynamics(self._sim_model, -1, lateralFriction = 0.9)
         self._pb_client.changeDynamics(self._sim_model, -1, linearDamping = 0, angularDamping = 0)
+        self._pb_client.changeDynamics(self._sim_model, -1, lateralFriction = 0.9)
         for i in range(self._pb_client.getNumJoints(self._sim_model)):
             self._pb_client.changeDynamics(self._sim_model, i, lateralFriction = 0.9)
         
@@ -65,20 +71,21 @@ class HumanoidStablePD():
             )
         
         # self._kin_model: allow collision, transparency
-        self._pb_client.changeDynamics(
-            self._kin_model,
-            -1,
-            activationState = self._pb_client.ACTIVATION_STATE_SLEEP +
-                              self._pb_client.ACTIVATION_STATE_ENABLE_SLEEPING +
-                              self._pb_client.ACTIVATION_STATE_DISABLE_WAKEUP)
+        self._pb_client.changeDynamics(self._kin_model, -1, linearDamping = 0, angularDamping = 0)
         alpha = 0.7
-        for j in range(self._pb_client.getNumJoints(self._kin_model)):
+        for j in range(-1, self._pb_client.getNumJoints(self._kin_model)):
             self._pb_client.changeVisualShape(self._kin_model, j, rgbaColor = [1, 1, 1, alpha])
             self._pb_client.setCollisionFilterGroupMask(
                 self._kin_model,
                 j,
                 collisionFilterGroup = 0,
                 collisionFilterMask = 0)
+            self._pb_client.changeDynamics(
+                self._kin_model,
+                j,
+                activationState = self._pb_client.ACTIVATION_STATE_SLEEP +
+                                self._pb_client.ACTIVATION_STATE_ENABLE_SLEEPING +
+                                self._pb_client.ACTIVATION_STATE_DISABLE_WAKEUP)
 
     def initPose(self, pose, phys_model, is_initBase, is_initVel):
         """ Reset humanoid's position and velocity
