@@ -14,6 +14,8 @@ parallel
 refine code  
 refine readme
 
+EG 2015 Improving Samcon
+
 ## Dependencies
 ``` python
 pybullet
