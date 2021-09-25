@@ -25,6 +25,12 @@ time
 math
 ```
 
+## How to use
+``` python
+cd SamCon
+python test/test_samcon.py
+```
+
 ## Citation
 If you find SamCon_pybullet useful in your research, please cite our repository using the following BibTeX entry.
 ```
