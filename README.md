@@ -8,14 +8,6 @@ Use SamCon to reconstruct a modified motion which can be tracked by using PD con
 <img src="https://github.com/liangpan-github/SamCon/blob/main/images/roll_track_modifiedMotion.gif" width="576" height="432" alt="gif"/><br/>
 
 
-## TBD:   
-semantic sampling time step  
-parallel  
-refine code  
-refine readme
-
-EG 2015 Improving Samcon
-
 ## Dependencies
 ``` python
 pybullet
