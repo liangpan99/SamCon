@@ -1,4 +1,4 @@
-""" 适用于humanoid.urdf的参数, 还包括Samcon和Improving Samcon的算法参数 """
+""" 适用于humanoid.urdf的参数 """
 
 import os
 
@@ -128,11 +128,3 @@ class HumanoidConfig():
     root_weight = 5
     end_effector_weight = 30
     balance_weight = 20
-    
-    
-    """ Improving Samcon Parameters """
-
-    joint_dof_count = [3, 3, 3, 1, 3, 3, 1, 3, 1, 3, 3, 1] # euler angle
-    joint_dof_total = sum(joint_dof_count)
-    
-    default_sampling_window = 0.1

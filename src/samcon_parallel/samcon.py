@@ -16,7 +16,7 @@ COST_INDEX = 5
 
 offset = 0.0 # sample time offset
 
-class ImprovingSamcon():
+class Samcon():
 
     def __init__(self, pybullet_client, simTimeStep, sampleTimeStep, savePath):
         self._pb_client = pybullet_client
@@ -48,9 +48,6 @@ class ImprovingSamcon():
         """
         SM = []
 
-        mean = [0] * c.joint_dof_total
-        cov = [c.default_sampling_window] * c.joint_dof_total
-
         # initialize SM[0]
         SM.append([])
         firstInitState = self._mocap_data.getSpecTimeState(t = 0.0 + offset)
@@ -77,7 +74,7 @@ class ImprovingSamcon():
                     if t != 1:
                         self._pb_client.restoreState(init_bullet_state)
 
-                    sampled_target_state = self.sample(target_state, mean, cov) 
+                    sampled_target_state = self.sample(target_state) 
                     self._humanoid.resetState(None, target_state)
                     sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
                     end_bullet_state = self._pb_client.saveState()
@@ -263,10 +260,18 @@ class ImprovingSamcon():
         f.close()
         print(f'file saved! [{self._savePath}]')
                 
+
+    def genRandomFromUniform(self, samplingWindow):
+        """ Generate random number from uniform distribution. """
+        diff = []
+        for i in samplingWindow:
+            diff.append(np.random.uniform(low = -i, high = i, size = (1)))
+        return diff
     
-    def genModifiedQuaternion(self, quaternion, diff):
+    def genModifiedQuaternion(self, quaternion, samplingWindow):
         if len(quaternion) == 4:
             euler = self._pb_client.getEulerFromQuaternion(quaternion)
+            diff = self.genRandomFromUniform(samplingWindow)
             eulerDiff = (
                 euler[0] + diff[0], 
                 euler[1] + diff[1], 
@@ -275,41 +280,30 @@ class ImprovingSamcon():
             quaternionDiff = self._pb_client.getQuaternionFromEuler(eulerDiff)
     
         if len(quaternion) == 1:
-            quaternionDiff = [diff[0] + quaternion[0]]
+            diff = self.genRandomFromUniform(samplingWindow)
+            quaternionDiff = diff[0] + quaternion[0]
 
         return quaternionDiff
 
-    def sample(self, state, mean, cov):
-        """ Perform random sampling on rotation of all movable joints to produce a new pose. 
-        
-        Args:
-            state
-            mean -- list
-            cov  -- list
-        """
-
-        assert len(mean) == c.joint_dof_total
-        assert len(cov) == c.joint_dof_total
-
-        cov_mat = np.diag(cov)
-        errors = np.random.multivariate_normal(mean, cov_mat, size=(1))
+    def sample(self, state):
+        """ Perform random sampling on rotation of all movable joints to produce a new pose. """
 
         modified_state = state._replace(
             basePos = [0, 0, 0],
             baseOrn = [0, 0, 0, 1],
 
-            chestRot=self.genModifiedQuaternion(state.chestRot, errors[0, 0 : 3]),
-            neckRot=self.genModifiedQuaternion(state.neckRot, errors[0, 3 : 6]),
-            rightHipRot=self.genModifiedQuaternion(state.rightHipRot, errors[0, 6 : 9]),
-            rightKneeRot=self.genModifiedQuaternion(state.rightKneeRot, errors[0, 9 : 10]),
-            rightAnkleRot=self.genModifiedQuaternion(state.rightAnkleRot, errors[0, 10 : 13]),
-            rightShoulderRot=self.genModifiedQuaternion(state.rightShoulderRot, errors[0, 13 : 16]),
-            rightElbowRot=self.genModifiedQuaternion(state.rightElbowRot, errors[0, 16 : 17]),
-            leftHipRot=self.genModifiedQuaternion(state.leftHipRot, errors[0, 17 : 20]),
-            leftKneeRot=self.genModifiedQuaternion(state.leftKneeRot, errors[0, 20 : 21]),
-            leftAnkleRot=self.genModifiedQuaternion(state.leftAnkleRot, errors[0, 21 : 24]),
-            leftShoulderRot=self.genModifiedQuaternion(state.leftShoulderRot, errors[0, 24 : 27]),
-            leftElbowRot=self.genModifiedQuaternion(state.leftElbowRot, errors[0, 27 : 28]),
+            chestRot=self.genModifiedQuaternion(state.chestRot, c.samplingWindow[0]),
+            neckRot=self.genModifiedQuaternion(state.neckRot, c.samplingWindow[1]),
+            rightHipRot=self.genModifiedQuaternion(state.rightHipRot, c.samplingWindow[2]),
+            rightKneeRot=self.genModifiedQuaternion(state.rightKneeRot, c.samplingWindow[3]),
+            rightAnkleRot=self.genModifiedQuaternion(state.rightAnkleRot, c.samplingWindow[4]),
+            rightShoulderRot=self.genModifiedQuaternion(state.rightShoulderRot, c.samplingWindow[5]),
+            rightElbowRot=self.genModifiedQuaternion(state.rightElbowRot, c.samplingWindow[6]),
+            leftHipRot=self.genModifiedQuaternion(state.leftHipRot, c.samplingWindow[7]),
+            leftKneeRot=self.genModifiedQuaternion(state.leftKneeRot, c.samplingWindow[8]),
+            leftAnkleRot=self.genModifiedQuaternion(state.leftAnkleRot, c.samplingWindow[9]),
+            leftShoulderRot=self.genModifiedQuaternion(state.leftShoulderRot, c.samplingWindow[10]),
+            leftElbowRot=self.genModifiedQuaternion(state.leftElbowRot, c.samplingWindow[11]),
 
             baseLinVel = [0, 0, 0],
             baseAngVel = [0, 0, 0],
@@ -359,6 +353,7 @@ class ImprovingSamcon():
             velocity = []
         
         return pose + velocity
+
 
     def getStateFromList(self, data):
         """ Type transition: from list to collections.namedtuple. """

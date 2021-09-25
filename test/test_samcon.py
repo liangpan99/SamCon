@@ -8,7 +8,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 
-from src.samcon.samcon import SamCon
+from src.samcon.samcon import Samcon
 from src.samcon.mocapdata import PybulletMocapData
 
 def isKeyTriggered(keys, key):
@@ -60,12 +60,12 @@ def main(**args):
     p.changeDynamics(plane, linkIndex=-1, lateralFriction=0.9)
     
     path = pybullet_data.getDataPath() + dataFolder + dataName
-    samcon = SamCon(p, simTimeStep, sampleTimeStep, savePath)
+    samcon = Samcon(p, simTimeStep, sampleTimeStep, savePath)
     mocap_data = PybulletMocapData(path, p)
     nIter = int(mocap_data.getCycleTime() / sampleTimeStep)
 
     print(f'data_name: {dataName}, nIter: {nIter}')
-    samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
     
 
     animating = False
@@ -75,8 +75,8 @@ def main(**args):
             animating = not animating
         
         if animating:
-          samcon.test(savePath, fps, useFPS)
-          # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+          # samcon.test(savePath, fps, useFPS)
+          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
 
           pass

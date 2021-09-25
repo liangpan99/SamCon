@@ -16,7 +16,7 @@ COST_INDEX = 5
 
 offset = 0.0 # sample time offset
 
-class SamCon():
+class Samcon():
 
     def __init__(self, pybullet_client, simTimeStep, sampleTimeStep, savePath):
         self._pb_client = pybullet_client
