@@ -34,7 +34,7 @@ cd SamCon/example/tensorboardX
 tensorboard --logdir ./info
 ```  
 <img src="https://github.com/liangpan-github/SamCon/blob/main/images/tensorboardX.png" width="576" height="432" alt="png"/><br/>  
-If you want to perform on your own result, run ```test/draw_curve.py```.
+If you want to perform on your own result, modify and run ```test/draw_curve.py```.
 
 
 ## References
