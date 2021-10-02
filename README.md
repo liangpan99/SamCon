@@ -18,10 +18,13 @@ math
 ```
 
 ## How to use
+We provide an example motion at ```example/run.txt```.  
+To visualize the example:
 ``` python
 cd SamCon
 python test/test_samcon.py
 ```
+If you want to use SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, and you need to make some changes on it.
 
 ## Citation
 If you find SamCon_pybullet useful in your research, please cite our repository using the following BibTeX entry.

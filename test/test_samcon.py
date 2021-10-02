@@ -65,8 +65,6 @@ def main(**args):
     nIter = int(mocap_data.getCycleTime() / sampleTimeStep)
 
     print(f'data_name: {dataName}, nIter: {nIter}')
-    # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
-    
 
     animating = False
     while(p.isConnected()):
@@ -75,9 +73,8 @@ def main(**args):
             animating = not animating
         
         if animating:
-          # samcon.test(savePath, fps, useFPS)
-          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
-
+          samcon.test(savePath, fps, useFPS)
+          # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
           pass
       
@@ -94,12 +91,12 @@ if __name__ == '__main__':
 
         'data_folder': "/data/motions/",
         'data_name': "humanoid3d_jump.txt",
-        'save_path': './data/reconstructed_motion/result_9.0_jump.txt',
+        'save_path': './example/run.txt',
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./2000,
         'useFPS': flag,
-        'displayFPS': 800,
+        'displayFPS': 360,
 
         'nIter': 12,
         'nSample': 1400,
