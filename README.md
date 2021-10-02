@@ -27,27 +27,15 @@ python test/test_samcon.py
 ```
 If you want to use SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, but you need to make some changes on it.
 
-We use ```tensorboardX``` to quantitatively compare the reconstructed and reference motion.  
+We use ```tensorboardX``` to quantitatively compare the sampled and reference pose.  
 To compare ```example\run.txt``` and reference run motion, you can follow:  
 ``` python
 cd SamCon/example/tensorboardX
 tensorboard --logdir ./info
 ```  
 <img src="https://github.com/liangpan-github/SamCon/blob/main/images/tensorboardX.png" width="576" height="432" alt="png"/><br/>  
-If you want to perform on your own reconstructed motion, run ```test/draw_curve.py```.
+If you want to perform on your own result, run ```test/draw_curve.py```.
 
-
-## Citation
-If you find SamCon_pybullet useful in your research, please cite our repository using the following BibTeX entry.
-```
-@Misc{pan2021samcon_pybullet,
-  author =       {Pan, Liang, et al.},
-  title =        {samcon_pybullet - implementing SamCon algorithm using pybullet},
-  howpublished = {Github},
-  year =         {2021},
-  url =          {https://github.com/liangpan-github/SamCon}
-}
-```
 
 ## References
 ```
