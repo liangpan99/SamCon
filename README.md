@@ -15,16 +15,27 @@ numpy
 json
 time
 math
+tensorboardX
 ```
 
 ## How to use
 We provide an example motion at ```example/run.txt```.  
-To visualize the example:
+To visualize the example, you can follow:
 ``` python
 cd SamCon
 python test/test_samcon.py
 ```
-If you want to use SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, and you need to make some changes on it.
+If you want to use SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, but you need to make some changes on it.
+
+We use ```tensorboardX``` to quantitatively compare the reconstructed and reference motion.  
+To compare ```example\run.txt``` and reference run motion, you can follow:  
+``` python
+cd SamCon/example/tensorboardX
+tensorboard --logdir ./info
+```  
+<img src="https://github.com/liangpan-github/SamCon/blob/main/images/tensorboardX.png" width="576" height="432" alt="png"/><br/>  
+If you want to perform on your own reconstructed motion, run ```test/draw_curve.py```.
+
 
 ## Citation
 If you find SamCon_pybullet useful in your research, please cite our repository using the following BibTeX entry.
