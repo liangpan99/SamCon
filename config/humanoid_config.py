@@ -5,7 +5,7 @@ import os
 class HumanoidConfig():
 
     """ load URDF """
-    fileName = os.path.join(os.getcwd(), 'data/urdf/humanoid.urdf')
+    fileName = os.path.join(os.getcwd(), 'example/urdf/humanoid.urdf')
     basePos = [0, 0, 0]
     globalScale = 0.25
 
