@@ -74,9 +74,8 @@ def main(**args):
         
         if animating:
           samcon.test(savePath, fps, useFPS)
-          samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
+          # samcon.learn(nIter, nSample, nSave, nSaveFinal, dataPath=path, displayFPS=fps, useFPS=useFPS)
 
-          pass
       
 
 if __name__ == '__main__':
