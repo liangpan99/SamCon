@@ -2,6 +2,7 @@ import time
 import json
 import math
 import numpy as np
+from numpy.core.einsumfunc import _parse_possible_contraction
 
 from src.samcon.simulation import HumanoidStablePD
 from src.samcon.mocapdata import PybulletMocapData
@@ -10,11 +11,12 @@ from config.humanoid_config import HumanoidConfig as c
 INIT_BULLET_STATE_INDEX = 0
 END_BULLET_STATE_INDEX = 1
 TARGET_STATE_INDEX = 2
-SAMPLED_TARGET_STATE_INDEX = 3
-SIM_TARGET_STATE_INDEX = 4
-COST_INDEX = 5
+COMPENSATED_TARGET_STATE_INDEX = 3
+SAMPLED_TARGET_STATE_INDEX = 4
+SIM_TARGET_STATE_INDEX = 5
+COST_INDEX = 6
 
-offset = 0.0 # sample time offset
+time_offset = 0.0 # sample time offset
 
 class Samcon():
 
@@ -44,22 +46,22 @@ class Samcon():
 
         """ 
         Data form in SM:
-        [initBulletState, endBulletState, targetState, sampledTargetState, simTargetState, cost]
+        [initBulletState, endBulletState, targetState, compensatedTargetState, sampledTargetState, simTargetState, cost]
         """
         SM = []
 
         # initialize SM[0]
         SM.append([])
-        firstInitState = self._mocap_data.getSpecTimeState(t = 0.0 + offset)
+        firstInitState = self._mocap_data.getSpecTimeState(t = 0.0 + time_offset)
         for i in range(self._nSave):
-            SM[0].append([0.0, firstInitState, 0.0, 0.0, 0.0, 0.0])
+            SM[0].append([0.0, firstInitState, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         for t in range(1, self._nIter + 1):
             
             nInitState = len(SM[t - 1])
             nSampleEachInitState = int(self._nSample / nInitState)
 
-            target_state = self._mocap_data.getSpecTimeState(t * self._sampleTimeStep + offset)
+            target_state = self._mocap_data.getSpecTimeState(t * self._sampleTimeStep + time_offset)
             S = []
             cost_list = []
             for state_set in SM[t - 1]:
@@ -71,14 +73,61 @@ class Samcon():
                     # use pybullet API: restoreState to ensure the continuity between two successive simulations 
                     if t == 1:
                         self._humanoid.resetState(init_bullet_state, None)
+                        temp_state = self._pb_client.saveState()
                     if t != 1:
                         self._pb_client.restoreState(init_bullet_state)
 
-                    sampled_target_state = self.sample(target_state) 
+                    # add feedforward offsets to target_state
+                    compensated_target_state = target_state[:] # create a new list
                     self._humanoid.resetState(None, target_state)
+                    feedforward_offsets, _ = self._humanoid.simulation(target_state, self._sampleTimeStep, displayFPS, useFPS)
+                    start_idx = 7
+                    for z in range(len(c.samplingWindow)):
+                        if len(c.samplingWindow[z]) == 3:
+                            quat = target_state[start_idx:start_idx+4]
+                            euler = self._pb_client.getEulerFromQuaternion(quat)
+                            offset = feedforward_offsets[start_idx:start_idx+4]
+                            offset = self._pb_client.getEulerFromQuaternion(offset)
+
+                            compensated_euler = (
+                                euler[0] + euler[0] - offset[0],
+                                euler[1] + euler[1] - offset[1],
+                                euler[2] + euler[2] - offset[2]
+                            )
+                            compensated_quat = self._pb_client.getQuaternionFromEuler(compensated_euler)
+                            
+                            compensated_target_state[start_idx+0] = compensated_quat[0]
+                            compensated_target_state[start_idx+1] = compensated_quat[1]
+                            compensated_target_state[start_idx+2] = compensated_quat[2]
+                            compensated_target_state[start_idx+3] = compensated_quat[3]
+
+                            start_idx += 4
+
+                        elif len(c.samplingWindow[z]) == 1:
+                            euler = target_state[start_idx:start_idx+1]
+                            offset = feedforward_offsets[start_idx:start_idx+1]
+
+                            compensated_euler = euler[0] + euler[0] - offset[0]
+                            compensated_target_state[start_idx] = compensated_euler
+                            start_idx += 1
+
+                        else:
+                            raise RuntimeError('wrong samplingwindow')
+
+                    # revise base pos&orn for visulization
+                    for z in range(7):
+                        compensated_target_state[z] = target_state[z]
+
+                    if t == 1:
+                        self._pb_client.restoreState(temp_state)
+                    if t != 1:
+                        self._pb_client.restoreState(init_bullet_state)
+
+                    sampled_target_state = self.sample(compensated_target_state) # sampling based on the compensated target
+                    self._humanoid.resetState(None, target_state) # still use target_state when calc cost
                     sim_target_state, cost = self._humanoid.simulation(sampled_target_state, self._sampleTimeStep, displayFPS, useFPS)
                     end_bullet_state = self._pb_client.saveState()
-                    S.append([init_bullet_state, end_bullet_state, target_state, sampled_target_state, sim_target_state, cost])
+                    S.append([init_bullet_state, end_bullet_state, target_state, compensated_target_state, sampled_target_state, sim_target_state, cost])
                     
                     cost_list.append(cost)
             
@@ -168,10 +217,12 @@ class Samcon():
             path_cost = data[key]['cost']
             t0_state = data[key]['t0_state']
             reference_states = data[key]['reference_states']
+            compensated_reference_states = data[key]['compensated_reference_states']
             sampled_states = data[key]['sampled_states']
             simulated_states = data[key]['simulated_states']
 
             assert len(reference_states) == nIter
+            assert len(compensated_reference_states) == nIter
             assert len(sampled_states) == nIter
             assert len(simulated_states) == nIter
 
@@ -180,6 +231,7 @@ class Samcon():
             for t in range(1, nIter + 1):
                 print('iter:  ', t)
                 reference_state = reference_states[t - 1]
+                compensated_reference_state = compensated_reference_states[t - 1]
                 sampled_state = sampled_states[t - 1]
                 simulated_state = simulated_states[t - 1]
 
@@ -220,15 +272,18 @@ class Samcon():
 
             # save the other states after t=0
             reference_states = []
+            compensated_reference_states = []
             sampled_states = []
             simulated_states = []
             for t in range(1, self._nIter + 1):
                 savedSample_index = path_list[pathId][t - 1]
                 reference_state = SM[t][savedSample_index][TARGET_STATE_INDEX]
+                compensated_reference_state = SM[t][savedSample_index][COMPENSATED_TARGET_STATE_INDEX]
                 sampled_state = SM[t][savedSample_index][SAMPLED_TARGET_STATE_INDEX]
                 simulated_state = SM[t][savedSample_index][SIM_TARGET_STATE_INDEX]
 
                 reference_states.append(reference_state)
+                compensated_reference_states.append(compensated_reference_state)
                 sampled_states.append(sampled_state)
                 simulated_states.append(simulated_state)
 
@@ -237,6 +292,7 @@ class Samcon():
                 'cost': pathCost_list[pathId],
                 't0_state': t0_state,
                 'reference_states': reference_states,
+                'compensated_reference_states': compensated_reference_states,
                 'sampled_states': sampled_states,
                 'simulated_states': simulated_states,
             }

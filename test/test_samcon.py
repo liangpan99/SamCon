@@ -69,7 +69,7 @@ def main(**args):
     animating = False
     while(p.isConnected()):
         keys = p.getKeyboardEvents()
-        if isKeyTriggered(keys, ' '): # 开始动画（连续仿真）
+        if isKeyTriggered(keys, ' '): # Press spacebar to start animating
             animating = not animating
         
         if animating:
@@ -79,9 +79,8 @@ def main(**args):
       
 
 if __name__ == '__main__':
-    flag = 1
     args = {
-        'useGUI': flag,
+        'useGUI': True,
 
         'cameraDistance': 1,
         'cameraYaw': 180,
@@ -94,12 +93,12 @@ if __name__ == '__main__':
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./240,
-        'useFPS': flag,
+        'useFPS': True,
         'displayFPS': 120,
 
-        'nIter': 7,
-        'nSample': 1400,
+        'nIter': 5,
+        'nSample': 800,
         'nSave': 200,
-        'nSaveFinal': 10
+        'nSaveFinal': 1
     }
     main(**args)
