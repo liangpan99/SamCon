@@ -4,7 +4,6 @@ import numpy as np
 from pybullet_utils import pd_controller_stable
 
 from config.humanoid_config import HumanoidConfig as c
-from src.samcon.mocapdata import State
 
 class HumanoidStablePD():
 
@@ -87,11 +86,11 @@ class HumanoidStablePD():
                                 self._pb_client.ACTIVATION_STATE_ENABLE_SLEEPING +
                                 self._pb_client.ACTIVATION_STATE_DISABLE_WAKEUP)
 
-    def initPose(self, pose, phys_model, is_initBase, is_initVel):
+    def initPose(self, state, phys_model, is_initBase, is_initVel):
         """ Reset humanoid's position and velocity
 
         Args:
-            pose -- collections.namedtuple State
+            state -- len=77 list
             phys_model -- int
             is_initBase -- bool
             is_initVel -- bool
@@ -99,35 +98,35 @@ class HumanoidStablePD():
         """
         if is_initVel:
             if is_initBase:
-                self._pb_client.resetBasePositionAndOrientation(phys_model, pose.basePos, pose.baseOrn)
-                self._pb_client.resetBaseVelocity(phys_model, pose.baseLinVel, pose.baseAngVel)
+                self._pb_client.resetBasePositionAndOrientation(phys_model, state[0:3], state[3:7])
+                self._pb_client.resetBaseVelocity(phys_model, state[43:46], state[46:49])
             
             indices = self._jointIndicesAll
 
-            jointPositions = [pose.chestRot, pose.neckRot, 
-                              pose.rightHipRot, pose.rightKneeRot, pose.rightAnkleRot, 
-                              pose.rightShoulderRot, pose.rightElbowRot, 
-                              pose.leftHipRot, pose.leftKneeRot, pose.leftAnkleRot, 
-                              pose.leftShoulderRot, pose.leftElbowRot]
-            jointVelocities = [pose.chestVel, pose.neckVel, 
-                               pose.rightHipVel, pose.rightKneeVel, pose.rightAnkleVel, 
-                               pose.rightShoulderVel, pose.rightElbowVel, 
-                               pose.leftHipVel, pose.leftKneeVel, pose.leftAnkleVel, 
-                               pose.leftShoulderVel, pose.leftElbowVel]
+            jointPositions = [state[7:11], state[11:15], 
+                              state[15:19], state[19:20], state[20:24], 
+                              state[24:28], state[28:29], 
+                              state[29:33], state[33:34], state[34:38], 
+                              state[38:42], state[42:43]]
+            jointVelocities = [state[49:52], state[52:55], 
+                               state[55:58], state[58:59], state[59:62], 
+                               state[62:65], state[65:66], 
+                               state[66:69], state[69:70], state[70:73], 
+                               state[73:76], state[76:77]]
             
             self._pb_client.resetJointStatesMultiDof(phys_model, indices,
                                             jointPositions, jointVelocities)
         else:
             if is_initBase:
-                self._pb_client.resetBasePositionAndOrientation(phys_model, pose.basePos, pose.baseOrn)
+                self._pb_client.resetBasePositionAndOrientation(phys_model, state[0:3], state[3:7])
             
             indices = self._jointIndicesAll
 
-            jointPositions = [pose.chestRot, pose.neckRot, 
-                              pose.rightHipRot, pose.rightKneeRot, pose.rightAnkleRot, 
-                              pose.rightShoulderRot, pose.rightElbowRot, 
-                              pose.leftHipRot, pose.leftKneeRot, pose.leftAnkleRot, 
-                              pose.leftShoulderRot, pose.leftElbowRot]
+            jointPositions = [state[7:11], state[11:15], 
+                              state[15:19], state[19:20], state[20:24], 
+                              state[24:28], state[28:29], 
+                              state[29:33], state[33:34], state[34:38], 
+                              state[38:42], state[42:43]]
             
             self._pb_client.resetJointStatesMultiDof(phys_model, indices,
                                             jointPositions)
@@ -193,7 +192,7 @@ class HumanoidStablePD():
         """ Execute simulation
         
         Args:
-            desiredPosition -- collections.namedtuple State -- PD controller only need targetPosition
+            desiredPosition -- len=77 list
             sampleTimeStep -- int -- for calculate simulation times
             displayFPS -- int
             useFPS -- bool
@@ -204,13 +203,7 @@ class HumanoidStablePD():
         """
 
         # Base position cannot be controlled, so we need 7 zeros
-        desiredPosition = [0, 0, 0, 0, 0, 0, 0] \
-            + list(desiredPosition.chestRot) + list(desiredPosition.neckRot) \
-            + list(desiredPosition.rightHipRot) + list(desiredPosition.rightKneeRot) + list(desiredPosition.rightAnkleRot) \
-            + list(desiredPosition.rightShoulderRot) + list(desiredPosition.rightElbowRot) \
-            + list(desiredPosition.leftHipRot) + list(desiredPosition.leftKneeRot) + list(desiredPosition.leftAnkleRot) \
-            + list(desiredPosition.leftShoulderRot) + list(desiredPosition.leftElbowRot)
-
+        desiredPosition = [0, 0, 0, 0, 0, 0, 0] + desiredPosition[7:43]
         
         numSim = int(sampleTimeStep / self._simTimeStep)
         for i in range(numSim):
@@ -226,39 +219,23 @@ class HumanoidStablePD():
         sim_baseLinVel, sim_baseAngVel = self._pb_client.getBaseVelocity(self._sim_model)
         sim_jointStates = self._pb_client.getJointStatesMultiDof(self._sim_model, c.linkIndicesAll)
 
-        simulatedState = State(
-            # Position
-            basePos = sim_basePos,
-            baseOrn = sim_baseOrn,
-            chestRot = sim_jointStates[c.chest][0], 
-            neckRot = sim_jointStates[c.neck][0], 
-            rightHipRot = sim_jointStates[c.rightHip][0], 
-            rightKneeRot = sim_jointStates[c.rightKnee][0], 
-            rightAnkleRot = sim_jointStates[c.rightAnkle][0], 
-            rightShoulderRot = sim_jointStates[c.rightShoulder][0], 
-            rightElbowRot = sim_jointStates[c.rightElbow][0], 
-            leftHipRot = sim_jointStates[c.leftHip][0], 
-            leftKneeRot = sim_jointStates[c.leftKnee][0], 
-            leftAnkleRot = sim_jointStates[c.leftAnkle][0], 
-            leftShoulderRot = sim_jointStates[c.leftShoulder][0], 
-            leftElbowRot = sim_jointStates[c.leftElbow][0],
+        simulatedState = []
 
-            # Velocity
-            baseLinVel = sim_baseLinVel,
-            baseAngVel = sim_baseAngVel,
-            chestVel = sim_jointStates[c.chest][1], 
-            neckVel = sim_jointStates[c.neck][1], 
-            rightHipVel = sim_jointStates[c.rightHip][1], 
-            rightKneeVel = sim_jointStates[c.rightKnee][1], 
-            rightAnkleVel = sim_jointStates[c.rightAnkle][1], 
-            rightShoulderVel = sim_jointStates[c.rightShoulder][1], 
-            rightElbowVel = sim_jointStates[c.rightElbow][1], 
-            leftHipVel = sim_jointStates[c.leftHip][1], 
-            leftKneeVel = sim_jointStates[c.leftKnee][1], 
-            leftAnkleVel = sim_jointStates[c.leftAnkle][1], 
-            leftShoulderVel = sim_jointStates[c.leftShoulder][1], 
-            leftElbowVel = sim_jointStates[c.leftElbow][1],
-        )
+        # Base pos orn len=7
+        simulatedState.extend(list(sim_basePos))
+        simulatedState.extend(list(sim_baseOrn))
+
+        # Joint rotation len=8*4+4*1=36
+        for i in c.controllableJointIndicesAll:
+            simulatedState.extend(list(sim_jointStates[i][0]))
+        
+        # Base lin ang vel len=6
+        simulatedState.extend(list(sim_baseLinVel))
+        simulatedState.extend(list(sim_baseAngVel))
+
+        # Joint ang vel len=8*3+4*1=28
+        for i in c.controllableJointIndicesAll:
+            simulatedState.extend(list(sim_jointStates[i][1]))
 
         cost = self.computeCost()
         
@@ -420,8 +397,8 @@ class HumanoidStablePD():
         sim_base_linVel, sim_base_angVel = self._pb_client.getBaseVelocity(self._sim_model)
         # don't read the velocities from the kinematic model (they are zero), use the pose interpolator velocity
         # see also issue https://github.com/bulletphysics/bullet3/issues/2401
-        kin_base_linVel = self._desiredState.baseLinVel
-        kin_base_angVel = self._desiredState.baseAngVel
+        kin_base_linVel = self._desiredState[43:46]
+        kin_base_angVel = self._desiredState[46:49]
 
         diffQuat = self._pb_client.getDifferenceQuaternion(sim_base_orn, kin_base_orn)
         axis, angle = self._pb_client.getAxisAngleFromQuaternion(diffQuat)

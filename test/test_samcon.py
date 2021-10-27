@@ -89,15 +89,15 @@ if __name__ == '__main__':
         'cameraTargetPosition': [0, 1, 1],
 
         'data_folder': "/data/motions/",
-        'data_name': "humanoid3d_jump.txt",
+        'data_name': "humanoid3d_run.txt",
         'save_path': './example/run.txt',
 
         'sampleTimeStep': 1./10,
-        'simTimeStep': 1./2000,
-        'useFPS': flag,
-        'displayFPS': 360,
+        'simTimeStep': 1./240,
+        'useFPS': 1,
+        'displayFPS': 120,
 
-        'nIter': 12,
+        'nIter': 7,
         'nSample': 1400,
         'nSave': 200,
         'nSaveFinal': 10

@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 from src.samcon.simulation import HumanoidStablePD
-from src.samcon.mocapdata import PybulletMocapData, State
+from src.samcon.mocapdata import PybulletMocapData
 from config.humanoid_config import HumanoidConfig as c
 
 INIT_BULLET_STATE_INDEX = 0
@@ -175,26 +175,19 @@ class Samcon():
             assert len(sampled_states) == nIter
             assert len(simulated_states) == nIter
 
-            self._humanoid.resetState(start_state = self.getStateFromList(t0_state), end_state = None)
+            self._humanoid.resetState(start_state = t0_state, end_state = None)
             
             for t in range(1, nIter + 1):
                 print('iter:  ', t)
                 reference_state = reference_states[t - 1]
-                reference_state = self.getStateFromList(reference_state)
-
                 sampled_state = sampled_states[t - 1]
-                sampled_state = self.getStateFromList(sampled_state)
-
                 simulated_state = simulated_states[t - 1]
-                simulated_state = self.getStateFromList(simulated_state)
 
                 self._humanoid.resetState(start_state = None, end_state = reference_state)
                 state, _ = self._humanoid.simulation(sampled_state, sampleTimeStep, displayFPS, useFPS)
 
-                state_1 = self.getListFromNamedtuple(state)
-                state_2 = self.getListFromNamedtuple(simulated_state)
-                state_1 = np.array(state_1)
-                state_2 = np.array(state_2)
+                state_1 = np.array(state)
+                state_2 = np.array(simulated_state)
                 print('error: ', (state_1-state_2).sum())
                 # time.sleep(0.5)
     
@@ -224,7 +217,6 @@ class Samcon():
             
             # save the init state at t=0
             t0_state = SM[0][0][END_BULLET_STATE_INDEX]
-            t0_state = self.getListFromNamedtuple(t0_state)
 
             # save the other states after t=0
             reference_states = []
@@ -235,10 +227,6 @@ class Samcon():
                 reference_state = SM[t][savedSample_index][TARGET_STATE_INDEX]
                 sampled_state = SM[t][savedSample_index][SAMPLED_TARGET_STATE_INDEX]
                 simulated_state = SM[t][savedSample_index][SIM_TARGET_STATE_INDEX]
-
-                reference_state = self.getListFromNamedtuple(reference_state)
-                sampled_state = self.getListFromNamedtuple(sampled_state)
-                simulated_state = self.getListFromNamedtuple(simulated_state)
 
                 reference_states.append(reference_state)
                 sampled_states.append(sampled_state)
@@ -267,129 +255,42 @@ class Samcon():
         for i in samplingWindow:
             diff.append(np.random.uniform(low = -i, high = i, size = (1)))
         return diff
-    
-    def genModifiedQuaternion(self, quaternion, samplingWindow):
-        if len(quaternion) == 4:
-            euler = self._pb_client.getEulerFromQuaternion(quaternion)
-            diff = self.genRandomFromUniform(samplingWindow)
-            eulerDiff = (
-                euler[0] + diff[0], 
-                euler[1] + diff[1], 
-                euler[2] + diff[2]
-            )
-            quaternionDiff = self._pb_client.getQuaternionFromEuler(eulerDiff)
-    
-        if len(quaternion) == 1:
-            diff = self.genRandomFromUniform(samplingWindow)
-            quaternionDiff = diff[0] + quaternion[0]
-
-        return quaternionDiff
 
     def sample(self, state):
         """ Perform random sampling on rotation of all movable joints to produce a new pose. """
 
-        modified_state = state._replace(
-            basePos = [0, 0, 0],
-            baseOrn = [0, 0, 0, 1],
+        state = np.array(state, dtype=np.float32)
+        state[43:77] = 0
 
-            chestRot=self.genModifiedQuaternion(state.chestRot, c.samplingWindow[0]),
-            neckRot=self.genModifiedQuaternion(state.neckRot, c.samplingWindow[1]),
-            rightHipRot=self.genModifiedQuaternion(state.rightHipRot, c.samplingWindow[2]),
-            rightKneeRot=self.genModifiedQuaternion(state.rightKneeRot, c.samplingWindow[3]),
-            rightAnkleRot=self.genModifiedQuaternion(state.rightAnkleRot, c.samplingWindow[4]),
-            rightShoulderRot=self.genModifiedQuaternion(state.rightShoulderRot, c.samplingWindow[5]),
-            rightElbowRot=self.genModifiedQuaternion(state.rightElbowRot, c.samplingWindow[6]),
-            leftHipRot=self.genModifiedQuaternion(state.leftHipRot, c.samplingWindow[7]),
-            leftKneeRot=self.genModifiedQuaternion(state.leftKneeRot, c.samplingWindow[8]),
-            leftAnkleRot=self.genModifiedQuaternion(state.leftAnkleRot, c.samplingWindow[9]),
-            leftShoulderRot=self.genModifiedQuaternion(state.leftShoulderRot, c.samplingWindow[10]),
-            leftElbowRot=self.genModifiedQuaternion(state.leftElbowRot, c.samplingWindow[11]),
+        start_idx = 7
+        for i in range(len(c.samplingWindow)):
 
-            baseLinVel = [0, 0, 0],
-            baseAngVel = [0, 0, 0],
-            chestVel = [0, 0, 0], 
-            neckVel = [0, 0, 0], 
-            rightHipVel = [0, 0, 0], 
-            rightKneeVel = [0], 
-            rightAnkleVel = [0, 0, 0], 
-            rightShoulderVel = [0, 0, 0], 
-            rightElbowVel = [0], 
-            leftHipVel = [0, 0, 0], 
-            leftKneeVel = [0], 
-            leftAnkleVel = [0, 0, 0], 
-            leftShoulderVel = [0, 0, 0], 
-            leftElbowVel = [0],
-        )
+            if len(c.samplingWindow[i]) == 3:
+                quat = state[start_idx:start_idx+4]
+                euler = self._pb_client.getEulerFromQuaternion(quat)
+                delta = self.genRandomFromUniform(c.samplingWindow[i])
 
-        return modified_state
+                sampled_euler = (
+                euler[0] + delta[0],
+                euler[1] + delta[1],
+                euler[2] + delta[2]
+                )
 
-    def getListFromNamedtuple(self, namedtuple, is_pose=True, is_velocity=True):
-        """ Type transition: from collections.namedtuple to list.
-        
-        Return:
-            pose len=43
-            velocity len=34
-            pose+velocity len=77
-        """
+                sampled_quat = self._pb_client.getQuaternionFromEuler(sampled_euler)
+                state[start_idx:start_idx+4] = list(sampled_quat)
 
-        if is_pose:
-            pose = list(namedtuple.basePos) + list(namedtuple.baseOrn) \
-                 + list(namedtuple.chestRot) + list(namedtuple.neckRot) \
-                 + list(namedtuple.rightHipRot) + list(namedtuple.rightKneeRot) + list(namedtuple.rightAnkleRot) \
-                 + list(namedtuple.rightShoulderRot) + list(namedtuple.rightElbowRot) \
-                 + list(namedtuple.leftHipRot) + list(namedtuple.leftKneeRot) + list(namedtuple.leftAnkleRot) \
-                 + list(namedtuple.leftShoulderRot) + list(namedtuple.leftElbowRot)
-        else:
-            pose = []
+                start_idx += 4
 
-        if is_velocity:
-            velocity = list(namedtuple.baseLinVel) + list(namedtuple.baseAngVel) \
-                 + list(namedtuple.chestVel) + list(namedtuple.neckVel) \
-                 + list(namedtuple.rightHipVel) + list(namedtuple.rightKneeVel) + list(namedtuple.rightAnkleVel) \
-                 + list(namedtuple.rightShoulderVel) + list(namedtuple.rightElbowVel) \
-                 + list(namedtuple.leftHipVel) + list(namedtuple.leftKneeVel) + list(namedtuple.leftAnkleVel) \
-                 + list(namedtuple.leftShoulderVel) + list(namedtuple.leftElbowVel)
-        else:
-            velocity = []
-        
-        return pose + velocity
+            elif len(c.samplingWindow[i]) == 1:
+                euler = state[start_idx:start_idx+1]
+                delta = self.genRandomFromUniform(c.samplingWindow[i])
 
+                sampled_euler = euler[0] + delta[0]
+                state[start_idx:start_idx+1] = sampled_euler
+                
+                start_idx += 1
+            
+            else:
+                raise RuntimeError('wrong samplingwindow!')
 
-    def getStateFromList(self, data):
-        """ Type transition: from list to collections.namedtuple. """
-
-        state = State(
-        # Position
-        basePos = data[0 : 3],
-        baseOrn = data[3 : 7],
-        chestRot = data[7 : 11], 
-        neckRot = data[11 : 15], 
-        rightHipRot = data[15 : 19], 
-        rightKneeRot = data[19 : 20], 
-        rightAnkleRot = data[20 : 24], 
-        rightShoulderRot = data[24 : 28], 
-        rightElbowRot = data[28 : 29], 
-        leftHipRot = data[29 : 33], 
-        leftKneeRot = data[33 : 34], 
-        leftAnkleRot = data[34 : 38], 
-        leftShoulderRot = data[38 : 42], 
-        leftElbowRot = data[42 : 43],
-
-        # Velocity
-        baseLinVel = data[43 : 46],
-        baseAngVel = data[46 : 49],
-        chestVel = data[49 : 52], 
-        neckVel = data[52 : 55], 
-        rightHipVel = data[55 : 58], 
-        rightKneeVel = data[58 : 59], 
-        rightAnkleVel = data[59 : 62], 
-        rightShoulderVel = data[62 : 65], 
-        rightElbowVel = data[65 : 66], 
-        leftHipVel = data[66 : 69], 
-        leftKneeVel = data[69 : 70], 
-        leftAnkleVel = data[70 : 73], 
-        leftShoulderVel = data[73 : 76], 
-        leftElbowVel = data[76 : 77],
-        )
-        
-        return state
+        return state.tolist()

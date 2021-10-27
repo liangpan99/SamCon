@@ -5,41 +5,6 @@ import numpy as np
 
 from config.humanoid_config import HumanoidConfig as c
 
-from collections import namedtuple
-State = namedtuple('State', [
-    # Position
-    'basePos',
-    'baseOrn',
-    'chestRot', 
-    'neckRot', 
-    'rightHipRot', 
-    'rightKneeRot', 
-    'rightAnkleRot', 
-    'rightShoulderRot', 
-    'rightElbowRot', 
-    'leftHipRot', 
-    'leftKneeRot', 
-    'leftAnkleRot', 
-    'leftShoulderRot', 
-    'leftElbowRot',
-
-    # Velocity
-    'baseLinVel',
-    'baseAngVel',
-    'chestVel', 
-    'neckVel', 
-    'rightHipVel', 
-    'rightKneeVel', 
-    'rightAnkleVel', 
-    'rightShoulderVel', 
-    'rightElbowVel', 
-    'leftHipVel', 
-    'leftKneeVel', 
-    'leftAnkleVel', 
-    'leftShoulderVel', 
-    'leftElbowVel',
-])
-
 class HumanoidPoseInterpolator(object):
 
   def __init__(self):
@@ -143,40 +108,45 @@ class HumanoidPoseInterpolator(object):
     return angVel
 
   def GetStatePosVel(self):
-    """ 返回一个自定义类型, 包括Pose和速度 """
-    state = State(
-        # Position
-        basePos = list(self._basePos),
-        baseOrn = list(self._baseOrn),
-        chestRot = list(self._chestRot), 
-        neckRot = list(self._neckRot), 
-        rightHipRot = list(self._rightHipRot), 
-        rightKneeRot = list(self._rightKneeRot), 
-        rightAnkleRot = list(self._rightAnkleRot), 
-        rightShoulderRot = list(self._rightShoulderRot), 
-        rightElbowRot = list(self._rightElbowRot), 
-        leftHipRot = list(self._leftHipRot), 
-        leftKneeRot = list(self._leftKneeRot), 
-        leftAnkleRot = list(self._leftAnkleRot), 
-        leftShoulderRot = list(self._leftShoulderRot), 
-        leftElbowRot = list(self._leftElbowRot),
+    """ Return a len=77 list. """
+    
+    state = []
 
-        # Velocity
-        baseLinVel = list(self._baseLinVel),
-        baseAngVel = list(self._baseAngVel),
-        chestVel = list(self._chestVel), 
-        neckVel = list(self._neckVel), 
-        rightHipVel = list(self._rightHipVel), 
-        rightKneeVel = list(self._rightKneeVel), 
-        rightAnkleVel = list(self._rightAnkleVel), 
-        rightShoulderVel = list(self._rightShoulderVel), 
-        rightElbowVel = list(self._rightElbowVel), 
-        leftHipVel = list(self._leftHipVel), 
-        leftKneeVel = list(self._leftKneeVel), 
-        leftAnkleVel = list(self._leftAnkleVel), 
-        leftShoulderVel = list(self._leftShoulderVel), 
-        leftElbowVel = list(self._leftElbowVel),
-    )
+    # Base pos orn len=7
+    state.extend(self._basePos) # state[0:3]
+    state.extend(self._baseOrn) # state[3:7]
+
+    # Joint rotation len=8*4+4*1=36
+    state.extend(self._chestRot) # state[7:11]
+    state.extend(self._neckRot) # state[11:15]
+    state.extend(self._rightHipRot) # state[15:19]
+    state.extend(self._rightKneeRot) # state[19:20]
+    state.extend(self._rightAnkleRot) # state[20:24]
+    state.extend(self._rightShoulderRot) # state[24:28]
+    state.extend(self._rightElbowRot) # state[28:29]
+    state.extend(self._leftHipRot) # state[29:33]
+    state.extend(self._leftKneeRot) # state[33:34]
+    state.extend(self._leftAnkleRot) # state[34:38]
+    state.extend(self._leftShoulderRot) # state[38:42]
+    state.extend(self._leftElbowRot) # state[42:43]
+
+    # Base lin ang vel len=6
+    state.extend(self._baseLinVel) # state[43:46]
+    state.extend(self._baseAngVel) # state[46:49]
+
+    # Joint ang vel len=8*3+4*1=28
+    state.extend(self._chestVel) # state[49:52]
+    state.extend(self._neckVel) # state[52:55]
+    state.extend(self._rightHipVel) # state[55:58]
+    state.extend(self._rightKneeVel) # state[58:59]
+    state.extend(self._rightAnkleVel) # state[59:62]
+    state.extend(self._rightShoulderVel) # state[62:65]
+    state.extend(self._rightElbowVel) # state[65:66]
+    state.extend(self._leftHipVel) # state[66:69]
+    state.extend(self._leftKneeVel) # state[69:70]
+    state.extend(self._leftAnkleVel) # state[70:73]
+    state.extend(self._leftShoulderVel) # state[73:76]
+    state.extend(self._leftElbowVel) # state[76:77]
 
     return state
 
@@ -188,6 +158,8 @@ class HumanoidPoseInterpolator(object):
                                         其中四元数顺序为x,y,z,w
         
     """
+    
+    self.Reset()
 
     keyFrameDuration = frameData[0]
 
@@ -325,24 +297,24 @@ class PybulletMocapData():
             newFrameData = []
 
             # keyFrameDuration
-            newFrameData += [oldFrameData[0]]
+            newFrameData.extend([oldFrameData[0]])
             # base position
-            newFrameData += [oldFrameData[1], oldFrameData[2], oldFrameData[3]]
+            newFrameData.extend([oldFrameData[1], oldFrameData[2], oldFrameData[3]])
             # base orientation
-            newFrameData += [oldFrameData[5], oldFrameData[6], oldFrameData[7], oldFrameData[4]]
+            newFrameData.extend([oldFrameData[5], oldFrameData[6], oldFrameData[7], oldFrameData[4]])
             # 12 joints
-            newFrameData += [oldFrameData[9], oldFrameData[10], oldFrameData[11], oldFrameData[8]]
-            newFrameData += [oldFrameData[13], oldFrameData[14], oldFrameData[15], oldFrameData[12]]
-            newFrameData += [oldFrameData[17], oldFrameData[18], oldFrameData[19], oldFrameData[16]]
-            newFrameData += [oldFrameData[20]]
-            newFrameData += [oldFrameData[22], oldFrameData[23], oldFrameData[24], oldFrameData[21]]
-            newFrameData += [oldFrameData[26], oldFrameData[27], oldFrameData[28], oldFrameData[25]]
-            newFrameData += [oldFrameData[29]]
-            newFrameData += [oldFrameData[31], oldFrameData[32], oldFrameData[33], oldFrameData[30]]
-            newFrameData += [oldFrameData[34]]
-            newFrameData += [oldFrameData[36], oldFrameData[37], oldFrameData[38], oldFrameData[35]]
-            newFrameData += [oldFrameData[40], oldFrameData[41], oldFrameData[42], oldFrameData[39]]
-            newFrameData += [oldFrameData[43]]
+            newFrameData.extend([oldFrameData[9], oldFrameData[10], oldFrameData[11], oldFrameData[8]])
+            newFrameData.extend([oldFrameData[13], oldFrameData[14], oldFrameData[15], oldFrameData[12]])
+            newFrameData.extend([oldFrameData[17], oldFrameData[18], oldFrameData[19], oldFrameData[16]])
+            newFrameData.extend([oldFrameData[20]])
+            newFrameData.extend([oldFrameData[22], oldFrameData[23], oldFrameData[24], oldFrameData[21]])
+            newFrameData.extend([oldFrameData[26], oldFrameData[27], oldFrameData[28], oldFrameData[25]])
+            newFrameData.extend([oldFrameData[29]])
+            newFrameData.extend([oldFrameData[31], oldFrameData[32], oldFrameData[33], oldFrameData[30]])
+            newFrameData.extend([oldFrameData[34]])
+            newFrameData.extend([oldFrameData[36], oldFrameData[37], oldFrameData[38], oldFrameData[35]])
+            newFrameData.extend([oldFrameData[40], oldFrameData[41], oldFrameData[42], oldFrameData[39]])
+            newFrameData.extend([oldFrameData[43]])
 
             self._mocap_data['Frames'][i] = newFrameData
 
