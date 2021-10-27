@@ -188,7 +188,7 @@ class Samcon():
 
                 state_1 = np.array(state)
                 state_2 = np.array(simulated_state)
-                print('error: ', (state_1-state_2).sum())
+                print('error: ', np.abs(state_1-state_2).sum())
                 # time.sleep(0.5)
     
     def save(self, SM, path_list, pathCost_list, savedIndices):

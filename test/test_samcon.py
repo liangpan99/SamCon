@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
         'sampleTimeStep': 1./10,
         'simTimeStep': 1./240,
-        'useFPS': 1,
+        'useFPS': flag,
         'displayFPS': 120,
 
         'nIter': 7,
