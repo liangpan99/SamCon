@@ -19,16 +19,16 @@ tensorboardX
 ```
 
 ## How to use
-We provide an example motion at ```example/run.txt```.  
+We provide two motion examples at ```example/walk.txt & run.txt```.  
 To visualize the example, you can follow:
 ``` python
 cd SamCon
 python test/test_samcon.py
 ```
-If you want to use SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, but you need to make some changes on it.
+If you want to perform SamCon on other motion sequences, you can also use the ```test/test_samcon.py```, but you need to make some changes on it.
 
 We use ```tensorboardX``` to quantitatively compare the sampled and reference pose.  
-To compare ```example\run.txt``` and reference run motion, you can follow:  
+To compare ```example/walk.txt & run.txt```, you can follow:  
 ``` python
 cd SamCon/example/tensorboardX
 tensorboard --logdir ./info
