@@ -2,7 +2,6 @@ import time
 import json
 import math
 import numpy as np
-from numpy.core.einsumfunc import _parse_possible_contraction
 
 from src.samcon.simulation import HumanoidStablePD
 from src.samcon.mocapdata import PybulletMocapData
@@ -26,6 +25,8 @@ class Samcon():
         self._simTimeStep = simTimeStep
         self._sampleTimeStep = sampleTimeStep
         self._savePath = savePath
+
+        self._clean_state = self._pb_client.saveState()
 
     def learn(self, nIter, nSample, nSave, nSaveFinal, dataPath, displayFPS, useFPS):
         
@@ -54,72 +55,71 @@ class Samcon():
         SM.append([])
         firstInitState = self._mocap_data.getSpecTimeState(t = 0.0 + time_offset)
         for i in range(self._nSave):
-            SM[0].append([0.0, firstInitState, 0.0, 0.0, 0.0, 0.0, 0.0])
+            SM[0].append([0.0, firstInitState, firstInitState, 0.0, 0.0, 0.0, 0.0])
 
         for t in range(1, self._nIter + 1):
             
             nInitState = len(SM[t - 1])
             nSampleEachInitState = int(self._nSample / nInitState)
 
+            start_state = self._mocap_data.getSpecTimeState((t-1) * self._sampleTimeStep + time_offset)
             target_state = self._mocap_data.getSpecTimeState(t * self._sampleTimeStep + time_offset)
+            
+            # add feedforward offsets to target_state
+            self._pb_client.restoreState(self._clean_state)
+            self._humanoid.resetState(start_state, target_state)
+            compensated_target_state = target_state[:] # create a new list
+            feedforward_offsets, _ = self._humanoid.simulation(target_state, self._sampleTimeStep, displayFPS, useFPS)
+            start_idx = 7
+            for z in range(len(c.samplingWindow)):
+                if len(c.samplingWindow[z]) == 3:
+                    quat = target_state[start_idx:start_idx+4]
+                    euler = self._pb_client.getEulerFromQuaternion(quat)
+                    offset = feedforward_offsets[start_idx:start_idx+4]
+                    offset = self._pb_client.getEulerFromQuaternion(offset)
+
+                    compensated_euler = (
+                        euler[0] + euler[0] - offset[0],
+                        euler[1] + euler[1] - offset[1],
+                        euler[2] + euler[2] - offset[2]
+                    )
+                    compensated_quat = self._pb_client.getQuaternionFromEuler(compensated_euler)
+                    
+                    compensated_target_state[start_idx+0] = compensated_quat[0]
+                    compensated_target_state[start_idx+1] = compensated_quat[1]
+                    compensated_target_state[start_idx+2] = compensated_quat[2]
+                    compensated_target_state[start_idx+3] = compensated_quat[3]
+
+                    start_idx += 4
+
+                elif len(c.samplingWindow[z]) == 1:
+                    euler = target_state[start_idx:start_idx+1]
+                    offset = feedforward_offsets[start_idx:start_idx+1]
+
+                    compensated_euler = euler[0] + euler[0] - offset[0]
+                    compensated_target_state[start_idx] = compensated_euler
+                    start_idx += 1
+
+                else:
+                    raise RuntimeError('wrong samplingwindow')
+
+            # revise base pos&orn for visulization
+            for z in range(7):
+                compensated_target_state[z] = target_state[z]
+
+
             S = []
             cost_list = []
             for state_set in SM[t - 1]:
                 init_bullet_state = state_set[END_BULLET_STATE_INDEX]
 
                 for i in range(nSampleEachInitState):
-                    
+
                     # load last time simulation result
                     # use pybullet API: restoreState to ensure the continuity between two successive simulations 
                     if t == 1:
+                        self._pb_client.restoreState(self._clean_state)
                         self._humanoid.resetState(init_bullet_state, None)
-                        temp_state = self._pb_client.saveState()
-                    if t != 1:
-                        self._pb_client.restoreState(init_bullet_state)
-
-                    # add feedforward offsets to target_state
-                    compensated_target_state = target_state[:] # create a new list
-                    self._humanoid.resetState(None, target_state)
-                    feedforward_offsets, _ = self._humanoid.simulation(target_state, self._sampleTimeStep, displayFPS, useFPS)
-                    start_idx = 7
-                    for z in range(len(c.samplingWindow)):
-                        if len(c.samplingWindow[z]) == 3:
-                            quat = target_state[start_idx:start_idx+4]
-                            euler = self._pb_client.getEulerFromQuaternion(quat)
-                            offset = feedforward_offsets[start_idx:start_idx+4]
-                            offset = self._pb_client.getEulerFromQuaternion(offset)
-
-                            compensated_euler = (
-                                euler[0] + euler[0] - offset[0],
-                                euler[1] + euler[1] - offset[1],
-                                euler[2] + euler[2] - offset[2]
-                            )
-                            compensated_quat = self._pb_client.getQuaternionFromEuler(compensated_euler)
-                            
-                            compensated_target_state[start_idx+0] = compensated_quat[0]
-                            compensated_target_state[start_idx+1] = compensated_quat[1]
-                            compensated_target_state[start_idx+2] = compensated_quat[2]
-                            compensated_target_state[start_idx+3] = compensated_quat[3]
-
-                            start_idx += 4
-
-                        elif len(c.samplingWindow[z]) == 1:
-                            euler = target_state[start_idx:start_idx+1]
-                            offset = feedforward_offsets[start_idx:start_idx+1]
-
-                            compensated_euler = euler[0] + euler[0] - offset[0]
-                            compensated_target_state[start_idx] = compensated_euler
-                            start_idx += 1
-
-                        else:
-                            raise RuntimeError('wrong samplingwindow')
-
-                    # revise base pos&orn for visulization
-                    for z in range(7):
-                        compensated_target_state[z] = target_state[z]
-
-                    if t == 1:
-                        self._pb_client.restoreState(temp_state)
                     if t != 1:
                         self._pb_client.restoreState(init_bullet_state)
 

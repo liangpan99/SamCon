@@ -96,9 +96,9 @@ if __name__ == '__main__':
         'useFPS': True,
         'displayFPS': 120,
 
-        'nIter': 5,
-        'nSample': 800,
+        'nIter': 7,
+        'nSample': 1400,
         'nSave': 200,
-        'nSaveFinal': 1
+        'nSaveFinal': 10
     }
     main(**args)
