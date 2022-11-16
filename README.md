@@ -68,7 +68,11 @@ It will ask you to input a sequence name, all names are lied in ```./data/motion
 <img src="https://github.com/liangpan99/SamCon_dev/blob/main/data/images/reference_motion.gif" width="576" height="324" alt="gif"/><br/>
 
 ### Examples
-We provide two configs (walk & cartwheel) and corresponding results to show you how to use this repo. All hyper-parameters are lied in ```.yml``` config, e.g. nIter, nSample, nSave and so on. Note that, because code requires a lot of disk I/O, **please set ```tmp_dir``` to SSD disk for speeding up.**
+We provide two configs (walk & cartwheel) and corresponding results to show you how to use this repo. All hyper-parameters are lied in ```.yml``` config, e.g. nIter, nSample, nSave and so on. Note that, because code requires a lot of disk I/O, **please set ```tmp_dir``` to SSD disk for speeding up.**  
+
+Highly recommended to "evaluate SamCon" first (all requirements are included in this repo).  
+"Run SamCon" will take you a little time to prepare reference motion.  
+
 #### Run SamCon
 ``` python
 python scripts/run_samcon.py --cfg walk --num_processes 8
