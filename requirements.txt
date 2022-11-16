@@ -5,7 +5,7 @@ opencv_python_headless==4.3.0.36
 pybullet==3.2.5
 PyYAML==6.0
 scipy==1.5.4
-torch==1.7.0
+torch
 torchgeometry==0.1.2
 tqdm==4.64.0
 treelib==1.6.1
