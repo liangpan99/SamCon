@@ -1,6 +1,6 @@
 joblib==1.1.0
 matplotlib==3.3.4
-numpy==1.19.5
+numpy==1.22.0
 opencv_python_headless==4.3.0.36
 pybullet==3.2.5
 PyYAML==6.0
