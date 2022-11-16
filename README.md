@@ -86,10 +86,6 @@ python scripts/eval_samcon.py --cfg cartwheel --file "cartwheel_ACCAD_Female1Ges
 You can find cost distribution images in the directory ```./results/samcon/cfg_name/info/```.
 <img src="https://github.com/liangpan99/SamCon_dev/blob/main/results/samcon/walk/info/walk_ACCAD_Female1Walking_c3d_B12%20-%20walk%20turn%20right%20(90)_poses_pose_cost.png" width="100%" alt="gif"/><br/>
 
-<img src="https://github.com/liangpan99/SamCon_dev/blob/main/results/samcon/walk/info/walk_ACCAD_Female1Walking_c3d_B12%20-%20walk%20turn%20right%20(90)_poses_total_cost.png" width="100%" alt="gif"/><br/>
-
-
-
 ## References
 Algorithm: [SamCon paper](http://libliu.info/Samcon/Samcon.html) + [Zhihu tutorial](https://zhuanlan.zhihu.com/p/58458670)  
 Humanoid URDF: [ScaDiver](https://github.com/facebookresearch/ScaDiver)  
