@@ -1,0 +1,154 @@
+fps_sim: 1000 # simulation frequency
+fps_act: 10 # sampling frequency
+seed: 1 # random seed
+auto_nIter: True # auto compute nIter (equal to motion sequence length)
+nIter: 30
+nSample: 2000
+nSave: 200
+
+# reference motion
+data_path: data/motion/amass_bullet.pkl
+motion_seq: ACCAD_Female1Walking_c3d_B12 - walk turn right (90)_poses
+# ACCAD_Female1Walking_c3d_B3 - walk1_poses
+# ACCAD_Male1Walking_c3d_Walk B10 - Walk turn left 45_poses
+
+# temp_dir is used to store .bullet files generated at runtime
+# we highly recommended to use SSD for fast disk I/O speed
+temp_dir: C:\\Users\\panliang\\samcon
+
+# pose delta
+# uniform:  delta ~ U(-v, v)
+# gaussian: delta ~ N(0, v)
+noise_type: uniform # uniform or gaussian
+joint_noises:
+  #  "name"              "value"
+  - ["lhip_x",            0.80] # radian
+  - ["lhip_y",            0.20]
+  - ["lhip_z",            0.60]
+  - ["lknee_x",           0.20]
+  - ["lknee_y",           0.00]
+  - ["lknee_z",           0.00]
+  - ["lankle_x",          0.60]
+  - ["lankle_y",          0.40]
+  - ["lankle_z",          0.20]
+  - ["rhip_x",            0.80]
+  - ["rhip_y",            0.20]
+  - ["rhip_z",            0.60]
+  - ["rknee_x",           0.20]
+  - ["rknee_y",           0.00]
+  - ["rknee_z",           0.00]
+  - ["rankle_x",          0.60]
+  - ["rankle_y",          0.40]
+  - ["rankle_z",          0.20]
+  - ["lowerback_x",       0.00]
+  - ["lowerback_y",       0.00]
+  - ["lowerback_z",       0.00]
+  - ["upperback_x",       0.10]
+  - ["upperback_y",       0.10]
+  - ["upperback_z",       0.10]
+  - ["chest_x",           0.00]
+  - ["chest_y",           0.00]
+  - ["chest_z",           0.00]
+  - ["lowerneck_x",       0.00]
+  - ["lowerneck_y",       0.00]
+  - ["lowerneck_z",       0.00]
+  - ["upperneck_x",       0.00]
+  - ["upperneck_y",       0.00]
+  - ["upperneck_z",       0.00]
+  - ["lclavicle_x",       0.00]
+  - ["lclavicle_y",       0.00]
+  - ["lclavicle_z",       0.00]
+  - ["lshoulder_x",       0.00]
+  - ["lshoulder_y",       0.00]
+  - ["lshoulder_z",       0.00]
+  - ["lelbow_x",          0.00]
+  - ["lelbow_y",          0.00]
+  - ["lelbow_z",          0.00]
+  - ["rclavicle_x",       0.00]
+  - ["rclavicle_y",       0.00]
+  - ["rclavicle_z",       0.00]
+  - ["rshoulder_x",       0.00]
+  - ["rshoulder_y",       0.00]
+  - ["rshoulder_z",       0.00]
+  - ["relbow_x",          0.00]
+  - ["relbow_y",          0.00]
+  - ["relbow_z",          0.00]
+
+joint_weights:
+  - 0.5 # lhip
+  - 0.3 # lknee
+  - 0.2 # lankle
+  - 0.5 # rhip
+  - 0.3 # rknee
+  - 0.2 # rankle
+  - 0.4 # lowerback
+  - 0.4 # upperback
+  - 0.3 # chest
+  - 0.3 # lowerneck
+  - 0.3 # upperneck
+  - 0.3 # lclavicle
+  - 0.3 # lshoulder
+  - 0.2 # lelbow
+  - 0.3 # rclavicle 
+  - 0.3 # rshoulder
+  - 0.2 # relbow
+
+end_effectors:
+  - 14 # lwrist
+  - 18 # rwrist
+  - 2  # lankle
+  - 5  # rankle
+
+cost_weights:
+  - 0    # pose of internal joints
+  - 5    # root orientation and angle velocity (global orientation)
+  - 20   # ee (height)
+  - 100  # balance (xy relative to com)
+  - 50   # com cost (CoM linear velocity)
+
+# physics character parameters
+model_file: data/character/humanoid.urdf
+scale: 1.0
+height: 1.65
+self_collision: True
+joint_params:
+  #  "name"                      "kps"      "kds"     "max_forces"
+  - ["lhip"                 ,   500.0,      50.0,        300.0]
+  - ["lknee"                ,   400.0,      40.0,        200.0]
+  - ["lankle"               ,   300.0,      30.0,        100.0]
+  - ["rhip"                 ,   500.0,      50.0,        300.0]
+  - ["rknee"                ,   400.0,      40.0,        200.0]
+  - ["rankle"               ,   300.0,      30.0,        100.0]
+  - ["lowerback"            ,   500.0,      50.0,        300.0]
+  - ["upperback"            ,   500.0,      50.0,        300.0]
+  - ["chest"                ,   500.0,      50.0,        300.0]
+  - ["lowerneck"            ,   200.0,      20.0,        100.0]
+  - ["upperneck"            ,   200.0,      20.0,        100.0]
+  - ["lclavicle"            ,   400.0,      40.0,        200.0]
+  - ["lshoulder"            ,   400.0,      40.0,        200.0]
+  - ["lelbow"               ,   300.0,      30.0,        150.0]
+  - ["rclavicle"            ,   400.0,      40.0,        200.0]
+  - ["rshoulder"            ,   400.0,      40.0,        200.0]
+  - ["relbow"               ,   300.0,      30.0,        150.0]
+
+# humanoid joints/links indices
+# root = -1
+# lhip = 0
+# lknee = 1
+# lankle = 2
+# rhip = 3
+# rknee = 4
+# rankle = 5
+# lowerback = 6
+# upperback = 7
+# chest = 8
+# lowerneck = 9
+# upperneck = 10
+# lclavicle = 11
+# lshoulder = 12
+# lelbow = 13
+# lwrist = 14
+# rclavicle = 15
+# rshoulder = 16
+# relbow = 17
+# rwrist = 18

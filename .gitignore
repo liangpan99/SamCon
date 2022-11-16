@@ -101,15 +101,6 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -129,7 +120,8 @@ dmypy.json
 .pyre/
 
 samcon-samcon-fromGitHub/
-data/
+data/motion/
 .vscode/
-test/test_angVel.py
-test/test_multiprocess.py
+output/
+results/samcon/kick
+scripts/test/
