@@ -102,7 +102,7 @@ cost_weights:
   - 10   # root orientation and angle velocity (global orientation)
   - 60   # ee (height)
   - 30   # balance (xy relative to com)
-  - 10   # com cost (CoM linear velocity)
+  - 10   # com cost (CoM position + linear velocity)
 
 # physics character parameters
 model_file: data/character/humanoid.urdf
