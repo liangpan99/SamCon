@@ -96,7 +96,12 @@ if __name__ == "__main__":
             print(f"Crawling: {k}")
         else:
             offset = 0.06 / 2 # <box size="0.0875 0.06 0.185"/>
-            bullets[:, 2] += abs(begin_feet) + offset
+            if begin_feet <= 0:
+                # handle penetration
+                bullets[:, 2] += abs(begin_feet) + offset
+            else:
+                # handle floating
+                bullets[:, 2] -= abs(begin_feet) - offset
 
             # check all sequence
             new_ground_pene = []

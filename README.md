@@ -31,7 +31,7 @@ code tested on windows & ubuntu
 ### Reference motion
 We use a large-scale 3D human motion dataset, i.e. [AMASS](https://amass.is.tue.mpg.de/), as the reference motion database.  
 
-To use pre-processed reference motion **(only contains 252 sequences of "ACCAD")**, download from [google drive](https://drive.google.com/file/d/1hf2NKmZMyX1jnfegwJIZPQzbNxogvk3J/view?usp=share_link) and place in the directory ```./data/motion/```.  
+To use pre-processed reference motion **(only contains 252 sequences of "ACCAD")**, download from [google drive](https://drive.google.com/file/d/1Sgjm2bYjDZI3GPGffOAGSFr9yihGyUaX/view?usp=sharing) and place in the directory ```./data/motion/```.  
 
 To manually generate reference motion from AMASS, follow the following instructions:  
 1. download AMASS dataset, and organize it into the following structure:  
