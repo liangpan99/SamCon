@@ -9,6 +9,8 @@ This repository has these following features:
 - Scripts for generating reference motion from AMASS.
 - Master-worker parallelization (tested on windows & ubuntu).  
 
+**Seeing demo videos in this page [[demo]](https://liangpan99.github.io/projects/SamCon/index.html)**
+
 Hope this repo can contribute to the physics-based character animation community. :innocent:  
 
 ## What's SamCon?
