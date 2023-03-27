@@ -1,24 +1,24 @@
 # SamCon
 
-[PyBullet](https://github.com/bulletphysics/bullet3) implementation of [SamCon](http://libliu.info/Samcon/Samcon.html) (SIGGRAPH 2010 paper "Sampling-based Contact-rich Motion Control").  
+[PyBullet](https://github.com/bulletphysics/bullet3) implementation of [SamCon](http://libliu.info/Samcon/Samcon.html) (SIGGRAPH 2010 "Sampling-based Contact-rich Motion Control").  
 
-SamCon is an easy-to-understand method for physics-based character animation.  
-This repository has these following features:  
-- Core parts of SamCon: (1) samples generation, simulation and evaluation, (2) elite samples selection, (3) final best trajectory searching.  
-- Humanoid URDF with similar topology to [SMPL](https://smpl.is.tue.mpg.de/), which means we can get reference motion from a large-scale human motion dataset [AMASS](https://amass.is.tue.mpg.de/).
-- Scripts for generating reference motion from AMASS.
-- Master-worker parallelization (tested on windows & ubuntu).  
+SamCon is an easy-to-understand method for physics-based humanoid motion tracking.  
+This repo has these following features:  
+- Algorithms: (1) samples generation, simulation and evaluation, (2) elite samples selection, (3) optimal trajectory searching.  
+- Humanoid URDF with skeleton similar to [SMPL](https://smpl.is.tue.mpg.de/).
+- Scripts of obtaining reference motion from large-scale motion dataset [AMASS](https://amass.is.tue.mpg.de/).
+- CPU-based parallelism (master-worker framework, tested on windows & ubuntu).
 
-**Seeing demo videos in this page [[demo]](https://liangpan99.github.io/projects/SamCon/index.html)**
+**Seeing demo videos in this page [[demo]](https://liangpan99.github.io/projects/SamCon/index.html)** :arrow_forward:
 
 Hope this repo can contribute to the physics-based character animation community. :innocent:  
 
 ## What's SamCon?
 
-Given a reference motion (see the transparent humanoid), directly feeding it to PD controllers will make the simulated humanoid fall down.  
+Given a reference motion (shown by the transparent humanoid), directly tracking it by using PD controllers will always lead the simulated humanoid to fall down.  
 <img src="https://github.com/liangpan99/SamCon_dev/blob/main/data/images/cartwheel_raw.gif" width="576" height="324" alt="gif"/><br/>
 
-Running SamCon to optimize the reference motion, we can get a corrected motion. Tracking it again, the simulated humanoid will behave like the reference motion.  
+Running SamCon to correct the reference motion, we can get a optimal control trajectory. Tracking it again (PD controllers are still used), the simulated humanoid will behave like the reference motion.  
 <img src="https://github.com/liangpan99/SamCon_dev/blob/main/data/images/cartwheel_samcon.gif" width="576" height="324" alt="gif"/><br/>
 
 ## Getting Started
